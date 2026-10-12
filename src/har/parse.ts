@@ -43,10 +43,29 @@ export interface ExtractOptions {
 }
 
 export async function loadHar(path: string): Promise<Har> {
-  const har = JSON.parse(await readFile(path, "utf8")) as Har;
+  let text: string;
+  try {
+    text = await readFile(path, "utf8");
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    throw new Error(code === "ENOENT" ? `${path} does not exist` : `cannot read ${path}: ${(error as Error).message}`);
+  }
+  let har: Har;
+  try {
+    har = JSON.parse(text) as Har;
+  } catch {
+    throw new Error(`${path} is not valid JSON; expected a HAR file from 'api-anything record' or browser DevTools`);
+  }
   if (!har?.log || !Array.isArray(har.log.entries)) {
     throw new Error(`${path} is not a HAR file: missing log.entries`);
   }
+  // Browsers and tools disagree on which fields are optional; fill the ones
+  // the analysis reads so a sparse export does not crash it.
+  har.log.entries = har.log.entries.filter((e) => e?.request?.url && e.request.method && e.response).map((e) => ({
+    ...e,
+    request: { ...e.request, headers: e.request.headers ?? [] },
+    response: { ...e.response, status: e.response.status ?? 0, headers: e.response.headers ?? [], content: e.response.content ?? {} },
+  }));
   return har;
 }
 
