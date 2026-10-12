@@ -15,6 +15,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - `deps <capture.har>`: traces credentials and IDs from the response that issues them to the requests that use them; exported as OpenAPI links and `x-api-anything.providesAuth`. (#7)
 - Session refresh: `call --refresh-state` and `refresh <url> --state` renew an expired session from a saved browser login and retry once, without storing a password. (#8)
 - `api-anything` command via `npm link`, with a Node entry point that runs the TypeScript sources through tsx. (#9)
+- `record`, `session` and `refresh` show how long each saved credential lasts (cookie `Expires`/`Max-Age`, JWT `exp`) and suggest a "remember me" login for short-lived sessions; `call` warns before sending when a known expiry has passed and explains how to log in again after a `401`/`403`. (#16)
 - Path and query parameters are typed from their observed values (integer, number, boolean, date, date-time, uuid); `ops` shows the format and `call` rejects a value that does not fit, with an example, before sending. (#15)
 - `redact <capture.har>` masks secret fields in hand-exported HAR files; `openapi --no-examples` leaves out every example value for sharing. (#14)
 - `--version`, and `--help` after any command. (#13)
@@ -30,8 +31,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
-Found by recording a real HR portal (#14):
+Found by recording a real HR portal (#14, #16):
 
+- `deps` linked dates that merely repeat across calls (today's date in a forecast and in a timesheet query); dates are no longer dependencies. (#16)
 - **Security:** the login password in a captured login request became an example value in the OpenAPI document. Credential fields (`password`, `token`, `secret`, `otp`, `apiKey`, ...) and JWTs are now described by type only, and `record` masks secret form fields before writing the capture with mode 600.
 - RPC-style paths (`/api/get-pto-history`) are named by their verb (`getPtoHistory`) instead of `listGetPtoHistory`, and the verb decides read or write, so a `GET .../delete-item` needs `--allow-writes`.
 - SignalR `negotiate` handshakes are filtered as noise.
