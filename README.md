@@ -25,7 +25,9 @@ The web interface of such a system already talks to a server through structured 
               become GET /orders/{orderId}, with query parameters and JSON schemas
               inferred from every observed request and response.
 4. Export     Write an OpenAPI 3.1 document that any OpenAPI tool can read.
-5. Use        (roadmap) Generate a typed client, or serve the operations as
+5. Verify     Replay one recorded call per operation against the live system and
+              report each operation as verified, drifted, failed or skipped.
+6. Use        (roadmap) Generate a typed client, or serve the operations as
               MCP tools that Claude Code, Codex or Cursor can call.
 ```
 
@@ -62,6 +64,34 @@ npm run cli -- openapi capture.har --out openapi.json --title "Our ERP"
 ```
 
 The result is an OpenAPI 3.1 document: one server for the system's main origin, a REST-style `operationId` for every operation (`listOrders`, `getOrder`, `createOrder`, `listCustomerInvoices`), typed path and query parameters, request bodies and responses per status code. Each operation also carries an `x-api-anything` extension with the number of observed calls and example paths, so you can see how much evidence a description rests on. Import the file into Postman, Swagger UI, an OpenAPI client generator or an agent framework.
+
+### How do I know the operations still work?
+
+```bash
+npm run cli -- verify capture.har
+```
+
+`verify` replays one recorded call per operation, preferring a successful one, and compares the live answer with what was recorded:
+
+```
+✓ verified GET /api/v1/orders (84 ms)
+    status and response shape match
+~ drifted  GET /api/v1/orders/{orderId} (61 ms)
+    response no longer matches the recorded shape (1 difference)
+      $.id: expected integer, got string
+✗ failed   GET /api/v1/customers/{customerId}/invoices (40 ms)
+    expected 200, got 401: session expired or not authorized; record a fresh capture
+- skipped  POST /api/v1/orders
+    POST changes data; pass --allow-writes to replay it
+
+1 verified, 1 drifted, 1 failed, 1 skipped
+```
+
+- **Only reads are replayed by default.** GET, HEAD and OPTIONS are sent; POST, PUT, PATCH and DELETE are skipped unless you pass `--allow-writes`, because replaying them would create or change records in the real system.
+- **Failures come with a reason**: an expired session, a redirect to a login page, a record that no longer exists, rate limiting or a server error.
+- **Drift lists the exact differences**: missing fields and changed types, by JSON path. Extra fields are not treated as drift.
+- `--base-url https://staging.example.com` replays against another environment, `--delay <ms>` spaces requests out (default 250 ms), `--json` prints machine-readable results.
+- The command exits with code 2 if any operation failed or drifted, so scripts and agents can act on it.
 
 ### How do I record a HAR file?
 
@@ -102,9 +132,9 @@ api-anything is early. What exists today and what is planned:
 - [x] JSON schema inference for request and response bodies, merged across calls
 - [x] CLI: `analyze` with text and JSON output
 - [x] OpenAPI 3.1 export with REST-style operation IDs and typed parameters
+- [x] Replay verification: verified / drifted / failed / skipped per operation, with reasons and schema differences; writes only on request
 - [ ] Session capture with Playwright, without manual HAR export
 - [ ] Session and request-dependency mapping (which call provides the token or ID the next call needs)
-- [ ] Replay verification: every operation is re-run and reported as working or failing, with the reason
 - [ ] MCP server: serve discovered operations as tools for AI agents
 - [ ] Typed client generation (TypeScript and Python)
 
@@ -120,7 +150,7 @@ Any system whose web interface loads data through HTTP requests, which covers mo
 
 ### Does it send my data anywhere?
 
-No. The current analysis runs entirely on your machine and makes no network calls. Future features that use a language model (for example, writing tool descriptions) will be opt-in and documented.
+No. `analyze` and `openapi` run entirely on your machine and make no network calls. `verify` sends requests only to the system in the capture (or the `--base-url` you give), never to any other service. Future features that use a language model (for example, writing tool descriptions) will be opt-in and documented.
 
 ### Do I need an AI model to use it?
 
