@@ -9,6 +9,7 @@ It works with the web apps people sign in to every day: SaaS tools for HR, payro
 ![api-anything recording a demo HR app, listing its operations, calling one and showing how the calls connect](docs/demo.gif)
 
 [![CI](https://github.com/mtbun/api-anything/actions/workflows/ci.yml/badge.svg)](https://github.com/mtbun/api-anything/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/mtbun/api-anything/actions/workflows/codeql.yml/badge.svg)](https://github.com/mtbun/api-anything/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Node 22+](https://img.shields.io/badge/node-%3E%3D22-brightgreen)
 ![Status: early](https://img.shields.io/badge/status-early-orange)
@@ -348,7 +349,7 @@ api-anything is early. What exists today:
 Planned:
 
 - [ ] An optional MCP server as a thin layer over `call`
-- [ ] Publishing to npm: the release workflow is ready ([docs/RELEASING.md](docs/RELEASING.md)); the first release will be 1.0.0
+- [ ] Publishing to npm: the release workflow is ready, with trusted publishing, an approval step and protected release tags ([docs/RELEASING.md](docs/RELEASING.md)); the first release will be 1.0.0
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed in each step.
 
@@ -418,7 +419,7 @@ If you are an AI agent working in this repository, read [AGENTS.md](AGENTS.md). 
 
 ## Contributing
 
-Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow, [SECURITY.md](SECURITY.md) for reporting vulnerabilities, and the [Code of Conduct](CODE_OF_CONDUCT.md). When reporting a bug, never attach a capture, session file or cookie: describe the problem or reproduce it with the [demo app](examples/demo-app).
 
 ## License
 

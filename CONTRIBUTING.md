@@ -1,6 +1,6 @@
 # Contributing to api-anything
 
-Thanks for your interest. This document describes how changes get in.
+Thanks for your interest. This document describes how changes get in. By taking part you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Development setup
 
@@ -17,7 +17,7 @@ Node.js 22 or newer is required. `npm link` makes the `api-anything` command ava
 
 ## Workflow
 
-1. Open an issue describing the problem or feature before large changes.
+1. Open an issue with the bug report or feature request template before large changes. Never attach a capture, session file, cookie or token; reproduce problems with the demo app or a synthetic capture.
 2. Create a branch from `main`: `feat/<short-name>`, `fix/<short-name>` or `docs/<short-name>`.
 3. Make the change with tests. `npm test` and `npm run typecheck` must pass.
 4. Update the documentation in the same pull request: README.md, AGENTS.md, llms.txt and the Unreleased section of CHANGELOG.md.

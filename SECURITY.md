@@ -17,4 +17,10 @@ api-anything works with the access of a signed-in user, so some of its files are
 
 Passwords are never stored and the login request is never replayed. Credential values are masked in `deps` output.
 
+## Release integrity
+
+Packages are published only from GitHub Actions on a protected version tag, after the maintainer approves the run, using npm trusted publishing (no stored npm token) and npm provenance, so every published version can be traced to the commit and workflow that built it. Dependencies are kept current by Dependabot, and the code is scanned with CodeQL on every pull request and weekly.
+
+## Local processing
+
 All processing is local. `record`, `refresh`, `verify` and `call` send requests only to the web app being used (or the `--base-url` given); no data goes to any other service. Delete captures and session files when you no longer need them.

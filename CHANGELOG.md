@@ -15,6 +15,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - `deps <capture.har>`: traces credentials and IDs from the response that issues them to the requests that use them; exported as OpenAPI links and `x-api-anything.providesAuth`. (#7)
 - Session refresh: `call --refresh-state` and `refresh <url> --state` renew an expired session from a saved browser login and retry once, without storing a password. (#8)
 - `api-anything` command via `npm link`, with a Node entry point that runs the TypeScript sources through tsx. (#9)
+- Project hygiene: issue templates that warn against attaching captures or cookies, a pull request checklist, a code of conduct, CODEOWNERS, Dependabot for npm and GitHub Actions, and CodeQL scanning. (#20)
 - Release workflow: pushing a `v*` tag checks the version and changelog, runs the tests, publishes to npm with provenance and creates the GitHub release from the changelog section; see `docs/RELEASING.md`. Package metadata for npm. (#19)
 - A demo HR app (`examples/demo-app/`) with a recording script, a demo GIF in the README rendered from `docs/demo.tape`, and a test that keeps the demo working. (#18)
 - Interactive login: when the saved browser login has ended, `call` (in a terminal) and `refresh --interactive` open a browser for a person to log in, close it once the app is reached, and continue; `call` uses `.api-anything/state.json` automatically; `--no-interactive` for scripts. (#17)
@@ -29,6 +30,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
+- Releases use npm trusted publishing instead of a stored token, run in an `npm` environment that waits for the maintainer's approval, and only admins can create `v*` tags. (#20)
 - POST actions are named after the action (`queryIndexProduct`, `login`), and POSTs that only read (`query`, `search`, `find`, `lookup`, `count`, ...) are treated as reads by `call`, `ops` and `verify`. (#10)
 - Documentation positions api-anything for any web app, led by multi-tenant SaaS, instead of internal systems only. (#9)
 
