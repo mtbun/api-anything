@@ -1,4 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import {
   analyzeHar,
   buildClientModel,
@@ -25,7 +26,7 @@ import {
   type VerificationResult,
 } from "./index.ts";
 
-const USAGE = `api-anything — turn a recorded browser session into API operations
+const USAGE = `api-anything — turn any web app into an API
 
 Usage:
   api-anything record  <url> [--out <capture.har>] [--all-origins] [--channel chrome|msedge]
@@ -43,9 +44,9 @@ Usage:
   api-anything client  <openapi.json> --lang ts|py [--out <file>]
 
 Commands:
-  record    Open a browser at <url>, use the system as usual, then close the
+  record    Open a browser at <url>, use the app as usual, then close the
             browser: the session is saved as a HAR file (default capture.har).
-            Only the system's own domain is recorded unless --all-origins.
+            Only the app's own domain is recorded unless --all-origins.
             --script runs a file that default-exports async (page, { url }) =>
             {...} instead of waiting for a person; it runs headless unless
             --headed. --save-state keeps the login (cookies, storage) in a
@@ -55,7 +56,7 @@ Commands:
             telemetry and bot-challenge traffic is left out unless
             --keep-noise (also accepted by openapi, deps and verify).
   openapi   Write an OpenAPI 3.1 document describing the operations.
-  verify    Replay one recorded call per operation against the live system and
+  verify    Replay one recorded call per operation against the live app and
             report each as verified, drifted, failed or skipped. Only reads are
             replayed unless --allow-writes is set. Exit code 2 if anything
             failed or drifted.
@@ -80,7 +81,12 @@ Commands:
 
 async function main(argv: string[]): Promise<number> {
   const [command, file, ...rest] = argv;
-  if (command === undefined || command === "--help" || command === "-h") {
+  if (command === "--version" || command === "-v") {
+    const pkg = JSON.parse(await readFile(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8")) as { version: string };
+    process.stdout.write(`${pkg.version}\n`);
+    return 0;
+  }
+  if (command === undefined || argv.includes("--help") || argv.includes("-h")) {
     process.stdout.write(USAGE);
     return command === undefined ? 1 : 0;
   }
@@ -164,6 +170,11 @@ async function analyze(file: string, flags: Flags): Promise<number> {
 async function openapi(file: string, flags: Flags): Promise<number> {
   const calls = extractApiCalls(await loadHar(file), { keepNoise: flags.keepNoise });
   const endpoints = groupEndpoints(calls);
+  if (endpoints.length === 0) {
+    throw new Error(
+      `no API calls found in ${file}. Record while the app loads data, or try --keep-noise; if the API is on another domain, record with --all-origins`,
+    );
+  }
   const document = toOpenApi(endpoints, { title: flags.title, version: flags.version, dependencies: findDependencies(calls) });
   const json = JSON.stringify(document, null, 2) + "\n";
   if (flags.out) {

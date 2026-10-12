@@ -110,6 +110,14 @@ export async function callOperation(doc: OpenApiDocument, request: CallRequest):
   if (op.requestBody?.required && request.body === undefined) {
     throw new Error(`${request.operationId} needs a request body; pass --body '<json>' or --body @file.json`);
   }
+  const mediaType = Object.keys(op.requestBody?.content ?? {})[0] ?? "application/json";
+  if (request.body !== undefined && mediaType.includes("json")) {
+    try {
+      JSON.parse(request.body);
+    } catch (error) {
+      throw new Error(`the body for ${request.operationId} is not valid JSON: ${(error as Error).message}`);
+    }
+  }
 
   const origin = serverFor(doc, op);
   const built = new URL(buildUrl(doc, request.operationId, request.params, request.baseUrl));
@@ -118,19 +126,23 @@ export async function callOperation(doc: OpenApiDocument, request: CallRequest):
     if ((op["x-api-anything"].credentialQuery ?? []).includes(name) && !built.searchParams.has(name)) built.searchParams.set(name, value);
   }
   const url = built.href;
-  const mediaType = Object.keys(op.requestBody?.content ?? {})[0] ?? "application/json";
 
   const send = async (session: Session | undefined): Promise<CallResult> => {
     const headers = new Headers(sessionHeaders(session, origin));
     if (request.body !== undefined) headers.set("content-type", mediaType);
     headers.set("accept", "application/json, */*");
-    const response = await (request.fetch ?? fetch)(url, {
-      method,
-      headers,
-      body: request.body,
-      redirect: "manual",
-      signal: AbortSignal.timeout(request.timeoutMs ?? 30_000),
-    });
+    let response: Response;
+    try {
+      response = await (request.fetch ?? fetch)(url, {
+        method,
+        headers,
+        body: request.body,
+        redirect: "manual",
+        signal: AbortSignal.timeout(request.timeoutMs ?? 30_000),
+      });
+    } catch (error) {
+      throw new Error(`could not reach ${new URL(url).origin}: ${networkReason(error)}`);
+    }
     const result: CallResult = {
       status: response.status,
       ok: response.ok,
@@ -148,6 +160,15 @@ export async function callOperation(doc: OpenApiDocument, request: CallRequest):
 
   const fresh = await request.refresh();
   return { ...(await send(fresh)), refreshedSession: fresh };
+}
+
+function networkReason(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+  if (error.name === "TimeoutError") return "no answer before the timeout";
+  const cause = (error as { cause?: { code?: string; message?: string } }).cause;
+  if (cause?.code === "ENOTFOUND") return "the host name does not resolve";
+  if (cause?.code === "ECONNREFUSED") return "connection refused";
+  return cause?.message ?? error.message;
 }
 
 function checkParams(operationId: string, declared: OpenApiParameter[], given: Record<string, string>): void {
