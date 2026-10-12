@@ -1,13 +1,16 @@
 import type { ApiCall } from "../har/parse.ts";
 import { inferSchema, mergeSchemas, type JsonSchema } from "../schema/infer.ts";
-import { templatePath } from "./normalize.ts";
+import { originFamily, templatePath } from "./normalize.ts";
 import { CREDENTIAL_PARAM } from "../credentials.ts";
 
 // One API operation observed in the capture: a method on a templated path of
 // one origin, with everything learned from every call that matched it.
 export interface Endpoint {
   id: string;
+  // The origin that served most calls.
   origin: string;
+  // Other numbered hosts of the same service that served this operation.
+  alternateOrigins?: string[];
   method: string;
   pathTemplate: string;
   callCount: number;
@@ -54,14 +57,15 @@ export function groupEndpoints(calls: ApiCall[]): Endpoint[] {
 }
 
 export function endpointKey(call: ApiCall): string {
-  return `${call.method} ${call.url.origin}${templatePath(call.url.pathname)}`;
+  return `${call.method} ${originFamily(call.url)}${templatePath(call.url.pathname)}`;
 }
 
 function buildEndpoint(key: string, calls: ApiCall[]): Endpoint {
   const first = calls[0]!;
+  const origins = byFrequency(calls.map((c) => c.url.origin));
   const endpoint: Endpoint = {
     id: key,
-    origin: first.url.origin,
+    origin: origins[0]!,
     method: first.method,
     pathTemplate: templatePath(first.url.pathname),
     callCount: calls.length,
@@ -69,6 +73,8 @@ function buildEndpoint(key: string, calls: ApiCall[]): Endpoint {
     responses: responses(calls),
     examplePaths: [...new Set(calls.map((c) => examplePath(c.url)))].slice(0, MAX_EXAMPLE_PATHS),
   };
+
+  if (origins.length > 1) endpoint.alternateOrigins = origins.slice(1);
 
   const bodies = calls.map((c) => c.requestBody).filter((b) => b !== undefined);
   if (bodies.length > 0) {
@@ -131,6 +137,13 @@ function responses(calls: ApiCall[]): EndpointResponse[] {
       if (bodies.length > 0) response.body = mergeAll(bodies.map(inferSchema));
       return response;
     });
+}
+
+// Most frequent first; ties keep first-seen order.
+function byFrequency(values: string[]): string[] {
+  const counts = new Map<string, number>();
+  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+  return [...counts.keys()].sort((a, b) => counts.get(b)! - counts.get(a)!);
 }
 
 function mergeAll(schemas: JsonSchema[]): JsonSchema {

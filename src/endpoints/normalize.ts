@@ -15,6 +15,18 @@ const WORD = /^[A-Za-z][A-Za-z0-9_-]{0,39}$/;
 const VERSION_PREFIX = /^(api|rest|v|version|ws|services?)$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+// Many services spread one API over numbered hosts: t5-in-1.algolia.net and
+// t32-usw-1.algolia.net, eu-3.api.example.com and us-1.api.example.com. When
+// the first label of a host has a digit and at least two labels follow, all
+// such hosts count as one origin family: "https://*.algolia.net".
+export function originFamily(url: URL): string {
+  const labels = url.hostname.split(".");
+  const isIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(url.hostname);
+  if (isIp || labels.length < 3 || !/\d/.test(labels[0]!)) return url.origin;
+  const port = url.port ? `:${url.port}` : "";
+  return `${url.protocol}//*.${labels.slice(1).join(".")}${port}`;
+}
+
 export function isIdentifierSegment(segment: string): boolean {
   return (
     INTEGER.test(segment) ||
