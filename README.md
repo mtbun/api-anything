@@ -1,8 +1,8 @@
 # api-anything
 
-**api-anything turns web-based business systems that have no public API into typed APIs and MCP tools for AI agents.** You use the system once in a normal browser session; api-anything reads the recorded traffic, finds the operations the web app calls behind the scenes, and describes them as API operations that an agent or a script can call directly.
+**api-anything turns web-based business systems that have no public API into typed APIs that AI agents and scripts can call from the command line.** You use the system once in a normal browser session; api-anything reads the recorded traffic, finds the operations the web app calls behind the scenes, and describes them as API operations that an agent or a script can call directly.
 
-> API anything with agents. ERP screens, internal admin panels and legacy portals become callable operations.
+> API anything with agents. ERP screens, internal admin panels and legacy portals become operations you call with one command.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Node 22+](https://img.shields.io/badge/node-%3E%3D22-brightgreen)
@@ -27,9 +27,11 @@ The web interface of such a system already talks to a server through structured 
 4. Export     Write an OpenAPI 3.1 document that any OpenAPI tool can read.
 5. Verify     Replay one recorded call per operation against the live system and
               report each operation as verified, drifted, failed or skipped.
-6. Use        (roadmap) Generate a typed client, or serve the operations as
-              MCP tools that Claude Code, Codex or Cursor can call.
+6. Call       Run any operation from the command line by its name:
+              api-anything call openapi.json getOrder --orderId 1042
 ```
+
+The command line is the primary interface. AI agents such as Claude Code, Codex and Cursor already work in a terminal, so they can discover operations with `ops` and run them with `call` without any extra setup, and the output pipes into `jq`, scripts or cron jobs.
 
 The analysis is deterministic: parsing, grouping and schema inference involve no model calls, cost nothing to run and produce the same output every time.
 
@@ -64,6 +66,33 @@ npm run cli -- openapi capture.har --out openapi.json --title "Our ERP"
 ```
 
 The result is an OpenAPI 3.1 document: one server for the system's main origin, a REST-style `operationId` for every operation (`listOrders`, `getOrder`, `createOrder`, `listCustomerInvoices`), typed path and query parameters, request bodies and responses per status code. Each operation also carries an `x-api-anything` extension with the number of observed calls and example paths, so you can see how much evidence a description rests on. Import the file into Postman, Swagger UI, an OpenAPI client generator or an agent framework.
+
+### How do I call an operation from the command line?
+
+```bash
+api-anything session capture.har            # save cookies and tokens from the capture
+api-anything ops openapi.json               # list operations and their parameters
+api-anything call openapi.json listOrders --status open --page 2
+api-anything call openapi.json getOrder --orderId 1042 | jq '.lines'
+api-anything call openapi.json createOrder --body @order.json --allow-writes
+```
+
+`ops` prints every operation with its parameters:
+
+```
+createOrder              POST   /api/v1/orders
+                         --body <json> (writes)
+getOrder                 GET    /api/v1/orders/{orderId}
+                         --orderId <integer>
+listOrders               GET    /api/v1/orders
+                         --page <integer> [--sort <string>] --status <string>
+```
+
+- **Parameters are flags named after the operation's parameters.** Missing or misspelled ones are rejected with the list of valid names, so an agent can correct itself.
+- **The session is kept apart from the API description.** `session` writes the cookie, authorization and CSRF headers from the capture to `.api-anything/session.json` with file mode 600; `call` reads it from there (or from `--session <file>`). The OpenAPI document never contains credentials and can be shared.
+- **Writes need `--allow-writes`.** POST, PUT, PATCH and DELETE operations are refused without it.
+- **stdout carries only the response body** (pretty-printed JSON), so it can be piped. A non-2xx answer prints the status to stderr and exits with code 2.
+- `--base-url` sends the call to another environment; `-p name=value` passes a parameter whose name clashes with an option.
 
 ### How do I know the operations still work?
 
@@ -116,8 +145,8 @@ A HAR file contains everything the browser sent and received, including session 
 | What it repeats | Clicks and keystrokes on the screen | The underlying requests the screen sends |
 | Speed | Seconds to minutes per task, waits for pages to render | One request per operation |
 | Breaks when | The layout, a label or a button position changes | The server-side request format changes |
-| Output | A recorded script | Typed operations with schemas (OpenAPI and MCP on the roadmap) |
-| Fit for AI agents | The agent has to drive a browser | The agent calls operations directly |
+| Output | A recorded script | An OpenAPI 3.1 document and named operations you can call |
+| Fit for AI agents | The agent has to drive a browser | The agent runs `api-anything call <operation>` in its terminal |
 
 Browser automation is still the right tool when a task depends on what is rendered on screen. api-anything is for the large share of business tasks that are really "read these records" or "submit this form".
 
@@ -132,10 +161,11 @@ api-anything is early. What exists today and what is planned:
 - [x] JSON schema inference for request and response bodies, merged across calls
 - [x] CLI: `analyze` with text and JSON output
 - [x] OpenAPI 3.1 export with REST-style operation IDs and typed parameters
+- [x] Command-line calls: `session`, `ops` and `call` with parameter checking and a separate, private session file
 - [x] Replay verification: verified / drifted / failed / skipped per operation, with reasons and schema differences; writes only on request
 - [ ] Session capture with Playwright, without manual HAR export
 - [ ] Session and request-dependency mapping (which call provides the token or ID the next call needs)
-- [ ] MCP server: serve discovered operations as tools for AI agents
+- [ ] MCP server as an optional thin layer over `call`
 - [ ] Typed client generation (TypeScript and Python)
 
 ## FAQ
@@ -150,11 +180,11 @@ Any system whose web interface loads data through HTTP requests, which covers mo
 
 ### Does it send my data anywhere?
 
-No. `analyze` and `openapi` run entirely on your machine and make no network calls. `verify` sends requests only to the system in the capture (or the `--base-url` you give), never to any other service. Future features that use a language model (for example, writing tool descriptions) will be opt-in and documented.
+No. `analyze` and `openapi` run entirely on your machine and make no network calls. `verify` and `call` send requests only to the system in the capture (or the `--base-url` you give), never to any other service. Session headers stay in a local file with owner-only permissions. Future features that use a language model (for example, writing tool descriptions) will be opt-in and documented.
 
 ### Do I need an AI model to use it?
 
-No. The core analysis is deterministic and needs no API key. Models will be used only where they add value, such as naming operations and writing descriptions for MCP tools.
+No. The core analysis is deterministic and needs no API key. Models will be used only where they add value, such as naming operations and writing their descriptions.
 
 ### What does an operation description contain?
 

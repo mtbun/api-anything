@@ -1,7 +1,7 @@
 {
   "name": "api-anything",
   "version": "0.1.0",
-  "description": "Turn web-based business systems without an API into typed APIs and MCP tools for AI agents, by analyzing the traffic of a normal browser session.",
+  "description": "Turn web-based business systems without an API into typed APIs and command-line operations for AI agents, by analyzing the traffic of a normal browser session.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -17,6 +17,7 @@
   },
   "keywords": [
     "api",
+    "cli",
     "mcp",
     "model-context-protocol",
     "ai-agents",
