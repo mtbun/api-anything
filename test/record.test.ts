@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { existsSync } from "node:fs";
-import { mkdtemp } from "node:fs/promises";
+import { mkdtemp, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium } from "playwright";
-import { analyzeHar, recordSession, sameSiteFilter } from "../src/index.ts";
+import { analyzeHar, loadRecordScript, recordSession, sameSiteFilter } from "../src/index.ts";
 
 // A tiny web app: a page whose script calls its own API, plus a call to a
 // different host that the default filter must leave out.
@@ -22,6 +22,7 @@ const PAGE = `<!doctype html><html><body>
 
 let server: Server;
 let origin: string;
+const cookiesSeen: (string | undefined)[] = [];
 const browserInstalled = existsSync(chromium.executablePath());
 
 before(async () => {
@@ -30,6 +31,15 @@ before(async () => {
     if (req.url === "/") {
       res.writeHead(200, { "content-type": "text/html" });
       return res.end(PAGE);
+    }
+    if (req.url === "/login") {
+      res.writeHead(200, { "content-type": "text/html", "set-cookie": "sid=logged-in; Path=/" });
+      return res.end("<p>welcome</p>");
+    }
+    if (req.url === "/api/me") {
+      cookiesSeen.push(req.headers.cookie);
+      res.writeHead(200, { "content-type": "application/json" });
+      return res.end(JSON.stringify({ user: req.headers.cookie?.includes("sid=logged-in") ? "alice" : null }));
     }
     res.writeHead(req.method === "POST" ? 201 : 200, { "content-type": "application/json" });
     res.end(JSON.stringify(req.method === "POST" ? { id: 7 } : { items: [{ id: 1, name: "nut" }] }));
@@ -78,4 +88,57 @@ test("recordSession captures the app's API calls into a HAR that analyze underst
   const post = endpoints.find((e) => e.method === "POST")!;
   assert.deepEqual(post.requestBody!.required, ["name"]);
   assert.ok(endpoints.every((e) => e.origin === origin), "calls to other hosts are not recorded");
+});
+
+const skip = !browserInstalled && "Chromium not installed (npx playwright install chromium)";
+
+test("a login saved with saveStatePath is reused by a later headless run", { skip }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), "api-anything-"));
+  const statePath = join(dir, "state.json");
+
+  await recordSession({
+    url: `${origin}/login`,
+    outPath: join(dir, "login.har"),
+    headless: true,
+    saveStatePath: statePath,
+    run: async () => {},
+  });
+  assert.equal((await stat(statePath)).mode & 0o777, 0o600);
+
+  cookiesSeen.length = 0;
+  await recordSession({
+    url: origin,
+    outPath: join(dir, "work.har"),
+    headless: true,
+    storageStatePath: statePath,
+    run: async (page) => {
+      await page.evaluate(() => fetch("/api/me").then((r) => r.json()));
+    },
+  });
+  assert.ok(cookiesSeen.some((c) => c?.includes("sid=logged-in")), "the saved session cookie is sent");
+  const ops = await analyzeHar(join(dir, "work.har"));
+  assert.ok(ops.some((e) => e.pathTemplate === "/api/me"));
+});
+
+test("loadRecordScript runs an agent-written script file", { skip }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), "api-anything-"));
+  const script = join(dir, "steps.ts");
+  await writeFile(
+    script,
+    `export default async (page: any, { url }: { url: string }) => {
+      if (!url.startsWith("http")) throw new Error("url not passed");
+      await page.evaluate(() => fetch("/api/items?status=open").then((r) => r.json()));
+    };\n`,
+  );
+  const outPath = join(dir, "capture.har");
+  await recordSession({ url: origin, outPath, headless: true, run: await loadRecordScript(script) });
+  const ops = await analyzeHar(outPath);
+  assert.ok(ops.some((e) => e.method === "GET" && e.pathTemplate === "/api/items"));
+});
+
+test("loadRecordScript rejects a file without a default function", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "api-anything-"));
+  const script = join(dir, "bad.ts");
+  await writeFile(script, "export const x = 1;\n");
+  await assert.rejects(loadRecordScript(script), /must default-export an async function/);
 });
