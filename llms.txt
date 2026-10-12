@@ -12,7 +12,8 @@ Key facts:
 - Verifies operations with `api-anything verify <capture.har>`: replays one recorded call per operation and reports verified, drifted (with JSON-path differences), failed (with a reason such as an expired session) or skipped. Only read requests are replayed unless --allow-writes is given.
 - Calls operations from the command line: `api-anything ops openapi.json` lists them, `api-anything call openapi.json getOrder --orderId 1042` runs one and prints the JSON body to stdout. Session headers come from a private local file created by `api-anything session <capture.har>`; writes need --allow-writes.
 - Maps dependencies with `api-anything deps <capture.har>`: which response issues the token or cookie later requests use (and so which operation to repeat to log in again), and which IDs flow from one operation into the next; exported as OpenAPI links.
-- Status: early. Implemented: browser recording, dependency mapping, HAR analysis, OpenAPI export, replay verification, command-line calls. Planned: automatic re-login, typed clients, an optional MCP layer.
+- Renews expired sessions with `call --refresh-state <state.json>` or `api-anything refresh <url> --state <state.json>`: the system is opened headless from a browser login the user saved once; no password is stored or replayed.
+- Status: early. Implemented: browser recording, dependency mapping, session refresh, HAR analysis, OpenAPI export, replay verification, command-line calls. Planned: typed clients, an optional MCP layer.
 
 ## Docs
 

@@ -125,6 +125,16 @@ listOrders               GET    /api/v1/orders
 - **stdout carries only the response body** (pretty-printed JSON), so it can be piped. A non-2xx answer prints the status to stderr and exits with code 2.
 - `--base-url` sends the call to another environment; `-p name=value` passes a parameter whose name clashes with an option.
 
+### What happens when the session expires?
+
+```bash
+api-anything call openapi.json listOrders --status open --refresh-state .api-anything/state.json
+```
+
+With `--refresh-state`, a `401`, `403` or a redirect to a login page is treated as an expired session: api-anything opens the system headless from the browser state saved with `record --save-state`, lets the web app load, collects the fresh cookies and credential headers it uses, saves them to the session file and retries the call once. `api-anything refresh <url> --state <file>` does the same on demand.
+
+No password is stored and the login request is never replayed. If the saved browser state itself has expired, api-anything says so and a person logs in again with `record --save-state`.
+
 ### How do I know the operations still work?
 
 ```bash
@@ -231,6 +241,7 @@ api-anything is early. What exists today and what is planned:
 - [x] OpenAPI 3.1 export with REST-style operation IDs and typed parameters
 - [x] Command-line calls: `session`, `ops` and `call` with parameter checking and a separate, private session file
 - [x] Dependency mapping: credentials and IDs traced from the response that issues them to the requests that use them; OpenAPI links and a marked login operation
+- [x] Session refresh: an expired session is renewed from a saved browser login and the call retried, without storing a password
 - [x] Replay verification: verified / drifted / failed / skipped per operation, with reasons and schema differences; writes only on request
 - [ ] MCP server as an optional thin layer over `call`
 - [ ] Typed client generation (TypeScript and Python)
