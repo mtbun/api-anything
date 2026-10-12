@@ -15,6 +15,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - `deps <capture.har>`: traces credentials and IDs from the response that issues them to the requests that use them; exported as OpenAPI links and `x-api-anything.providesAuth`. (#7)
 - Session refresh: `call --refresh-state` and `refresh <url> --state` renew an expired session from a saved browser login and retry once, without storing a password. (#8)
 - `api-anything` command via `npm link`, with a Node entry point that runs the TypeScript sources through tsx. (#9)
+- `redact <capture.har>` masks secret fields in hand-exported HAR files; `openapi --no-examples` leaves out every example value for sharing. (#14)
 - `--version`, and `--help` after any command. (#13)
 - `client <openapi.json> --lang ts|py`: generates a single-file, dependency-free TypeScript (fetch) or Python (standard library, 3.9+) client with typed methods, defaults, credential query parameters and session-file loading. (#12)
 - `--keep-noise` for `analyze`, `openapi`, `deps` and `verify`. (#10)
@@ -27,6 +28,12 @@ All notable changes to this project are documented here. The format follows [Kee
 - Documentation positions api-anything for any web app, led by multi-tenant SaaS, instead of internal systems only. (#9)
 
 ### Fixed
+
+Found by recording a real HR portal (#14):
+
+- **Security:** the login password in a captured login request became an example value in the OpenAPI document. Credential fields (`password`, `token`, `secret`, `otp`, `apiKey`, ...) and JWTs are now described by type only, and `record` masks secret form fields before writing the capture with mode 600.
+- RPC-style paths (`/api/get-pto-history`) are named by their verb (`getPtoHistory`) instead of `listGetPtoHistory`, and the verb decides read or write, so a `GET .../delete-item` needs `--allow-writes`.
+- SignalR `negotiate` handshakes are filtered as noise.
 
 - A missing or non-JSON capture, an empty capture passed to `openapi`, an invalid JSON `--body` and an unreachable host now give one readable `error:` line with what to do next instead of a raw library message; `openapi` no longer writes a document without operations. (#13)
 - Sparse HAR exports without request headers, response headers or content no longer crash the analysis; entries without a URL, method or response are skipped. (#13)

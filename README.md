@@ -89,6 +89,7 @@ Without `npm link`, run the same commands as `npm run cli -- <command> ...` insi
 |---|---|
 | `record <url>` | Opens a browser, records the session to a HAR file when the window is closed |
 | `analyze <capture.har>` | Lists the operations found in a capture (`--keep-noise` keeps analytics and telemetry) |
+| `redact <capture.har>` | Masks passwords and other secret fields in a HAR exported by hand and makes it private |
 | `openapi <capture.har>` | Writes an OpenAPI 3.1 document |
 | `deps <capture.har>` | Shows which values flow between calls: credentials and IDs |
 | `session <capture.har>` | Saves the session headers (cookies, tokens) to a private file |
@@ -112,9 +113,9 @@ A browser window opens at that address. Log in and do the tasks you want to auto
 - `--save-state <file>` keeps the login (cookies and local storage) in a private file so scripts and session refresh can reuse it.
 - `--channel chrome` or `--channel msedge` uses the browser already installed on your machine.
 
-A HAR file contains everything the browser sent and received, including session cookies. Treat it like a password: keep it local and do not commit it. The repository's `.gitignore` excludes `*.har` outside the test fixtures.
+A HAR file contains everything the browser sent and received, including session cookies. `record` masks passwords, one-time codes and other secret fields typed into forms before the file is written, and writes it with mode 600. Treat it like a password anyway: keep it local and do not commit it. The repository's `.gitignore` excludes `*.har` outside the test fixtures.
 
-You can also export a HAR by hand. In Chrome or Edge, open DevTools (F12) → **Network** tab → tick **Preserve log** → use the app → right-click the request list → **Save all as HAR with content**. Firefox has the same option in its Network panel.
+You can also export a HAR by hand. In Chrome or Edge, open DevTools (F12) → **Network** tab → tick **Preserve log** → use the app → right-click the request list → **Save all as HAR with content**. Firefox has the same option in its Network panel. Run `api-anything redact capture.har` on a hand-exported file: browsers save the login password in it.
 
 ### Can an AI agent record the session itself?
 
@@ -152,6 +153,8 @@ Recordings of real apps carry details the document handles for you:
 - **Fixed values become defaults.** A query parameter the app sends with the same value on every call (a client version, an app ID) gets that value as its default, so callers pass only real inputs.
 - **Credentials in the URL stay out.** An API key or token sent as a query parameter is not a parameter and never appears in the document; it is listed under `x-api-anything.credentialQuery` and `call` adds it from the session file.
 - **Numbered hosts of one service are one operation.** When `t5-in-1.search.example.com` and `t32-usw-1.search.example.com` serve the same call, it is one operation whose OpenAPI `servers` list every host, most-used first.
+- **RPC-style apps get readable names.** Many apps name operations in the path instead of using REST resources: `/api/get-pto-history` becomes `getPtoHistory`, `/api/home-office/get-form-approval-dates` becomes `getHomeOfficeFormApprovalDates`. The verb also decides read or write: `GET /api/items/delete-item` is a write, `POST /api/reports/get-summary` is a read.
+- **Credentials never become examples.** Values of fields such as `password`, `token`, `secret`, `otp` or `apiKey`, and any JWT, are described by type only. `--no-examples` leaves out every example value, for sharing the document outside your team.
 - **Actions are named for what they do.** `POST /1/indexes/products/query` becomes `queryIndexProduct`, `POST /api/login` becomes `login`, and POSTs that only read (`query`, `search`, `find`, `lookup`, `count`, ...) are treated as reads, so they run without `--allow-writes`.
 
 `analyze --json` prints the same information without the OpenAPI wrapping.
@@ -349,7 +352,11 @@ The method, the templated path, the origin, how many calls were observed, every 
 
 ### How are passwords handled?
 
-They are never stored. Logging in is done by a person in a real browser; api-anything keeps only the resulting cookies and tokens (`session.json`) and browser state (`state.json`), both written with mode 600 in the gitignored `.api-anything/` directory. The login request is never replayed.
+They are never stored. Logging in is done by a person in a real browser; `record` masks the password in the captured login request before writing the file, and the OpenAPI document describes credential fields by type only. api-anything keeps only the resulting cookies and tokens (`session.json`) and browser state (`state.json`), both written with mode 600 in the gitignored `.api-anything/` directory. The login request is never replayed.
+
+### How long does a recorded session last?
+
+As long as the app keeps it alive. Many apps end idle sessions after a few minutes to an hour; the saved browser state (`state.json`) ends with them unless the app offers a longer "remember me" login. When `call` or `verify` report 401 and `refresh` says the saved state is no longer logged in, log in again with `record --save-state`. Choosing "remember me" when logging in makes the saved state last longer.
 
 ### Can I use it with apps I do not have access to?
 
