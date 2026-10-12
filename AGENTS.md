@@ -4,7 +4,7 @@ Instructions for AI coding agents (Claude Code, Codex, Cursor, Gemini CLI) worki
 
 ## What this project is
 
-api-anything turns the recorded traffic of a normal browser session (a HAR file) into API operations: method, templated path, query parameters and inferred JSON schemas. The goal is to make web-based business systems without an API callable by agents and scripts.
+api-anything turns the recorded traffic of a normal browser session (a HAR file) into API operations: method, templated path, query parameters and inferred JSON schemas. The goal is to make any web app (SaaS tools, ERPs, portals, admin panels) callable by agents and scripts, especially where no API is available.
 
 ## Commands
 
@@ -50,7 +50,7 @@ test/             tests; test/fixtures/ holds synthetic captures only
 - **Never replay or store a login request.** Sessions are renewed only from a browser state the user saved (`refreshSession`).
 - **Credential values are always masked in output.** `deps` prints only a prefix and length for tokens and cookies.
 - **Credentials never enter the OpenAPI document.** Session headers live only in `.api-anything/session.json` (mode 600, gitignored).
-- **Never commit real captures.** HAR files contain session cookies and business data. Fixtures must be synthetic and use the `example.test` domain.
+- **Never commit real captures.** HAR files contain session cookies and account data. Fixtures must be synthetic and use the `example.test` domain.
 - **Every behaviour change gets a test.** Add or update a case in `test/` and keep the fixture minimal.
 - **Do not drop data silently.** If a body cannot be parsed, keep it as raw text; if an entry is skipped, it must be because a documented rule says so.
 - TypeScript strict, ESM, `.ts` extensions in imports, Node 22+. No build step.
