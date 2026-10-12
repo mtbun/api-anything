@@ -22,6 +22,9 @@ export interface Session {
 }
 
 export const DEFAULT_SESSION_PATH = ".api-anything/session.json";
+// Where `record --save-state` is suggested to keep the browser login, and
+// where `call` and `refresh` look for it when no path is given.
+export const DEFAULT_STATE_PATH = ".api-anything/state.json";
 
 
 export function extractSession(calls: ApiCall[]): Session {

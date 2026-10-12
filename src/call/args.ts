@@ -5,6 +5,8 @@ export interface CallArgs {
   sessionPath?: string;
   refreshState?: string;
   refreshUrl?: string;
+  // Never open a browser for a person to log in (scripts, agents).
+  noInteractive?: boolean;
   allowWrites: boolean;
 }
 
@@ -16,6 +18,10 @@ export function parseCallArgs(args: string[]): CallArgs {
     const arg = args[i]!;
     if (arg === "--allow-writes") {
       out.allowWrites = true;
+      continue;
+    }
+    if (arg === "--no-interactive") {
+      out.noInteractive = true;
       continue;
     }
     if (arg === "-p") {
