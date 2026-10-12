@@ -1,6 +1,9 @@
 import { readFile, writeFile } from "node:fs/promises";
 import {
   analyzeHar,
+  buildClientModel,
+  renderPython,
+  renderTypeScript,
   refreshSession,
   authSources,
   findDependencies,
@@ -37,6 +40,7 @@ Usage:
                        [--session <file>] [--base-url <url>] [--allow-writes]
                        [--refresh-state <file>] [--refresh-url <url>]
   api-anything refresh <url> --state <file> [--out <session.json>]
+  api-anything client  <openapi.json> --lang ts|py [--out <file>]
 
 Commands:
   record    Open a browser at <url>, use the system as usual, then close the
@@ -66,6 +70,9 @@ Commands:
             pretty-printed. Writes need --allow-writes. Exit code 2 on a
             non-2xx response. With --refresh-state, an expired session is
             renewed from the saved browser state and the call retried once.
+  client    Generate a single-file client with one typed method per
+            operation: TypeScript (fetch) or Python (standard library).
+            Both can load the session file. Prints to stdout unless --out.
   refresh   Open <url> headless from a browser state saved with
             'record --save-state' and write a fresh session file. No
             password is stored or replayed.
@@ -101,6 +108,8 @@ async function main(argv: string[]): Promise<number> {
       return call(file, rest);
     case "refresh":
       return refresh(file, parseFlags(rest));
+    case "client":
+      return client(file, parseFlags(rest));
     default:
       process.stderr.write(USAGE);
       return 1;
@@ -217,6 +226,20 @@ async function refresh(url: string, flags: Flags): Promise<number> {
   return 0;
 }
 
+async function client(file: string, flags: Flags): Promise<number> {
+  const lang = flags.lang;
+  if (lang !== "ts" && lang !== "py") throw new Error("client needs --lang ts or --lang py");
+  const model = buildClientModel(await loadOpenApi(file));
+  const code = lang === "ts" ? renderTypeScript(model) : renderPython(model);
+  if (flags.out) {
+    await writeFile(flags.out, code);
+    process.stderr.write(`Wrote a ${lang === "ts" ? "TypeScript" : "Python"} client with ${model.operations.length} operations to ${flags.out}\n`);
+  } else {
+    process.stdout.write(code);
+  }
+  return 0;
+}
+
 async function session(file: string, flags: Flags): Promise<number> {
   const extracted = extractSession(extractApiCalls(await loadHar(file)));
   const path = flags.out ?? DEFAULT_SESSION_PATH;
@@ -324,6 +347,7 @@ interface Flags {
   headless?: boolean;
   headed: boolean;
   channel?: string;
+  lang?: string;
   script?: string;
   state?: string;
   saveState?: string;
@@ -334,8 +358,9 @@ interface Flags {
   delay?: string;
 }
 
-const VALUE_FLAGS: Record<string, "out" | "title" | "version" | "baseUrl" | "delay" | "channel" | "script" | "state" | "saveState"> = {
+const VALUE_FLAGS: Record<string, "out" | "title" | "version" | "baseUrl" | "delay" | "channel" | "lang" | "script" | "state" | "saveState"> = {
   "--channel": "channel",
+  "--lang": "lang",
   "--script": "script",
   "--state": "state",
   "--save-state": "saveState",

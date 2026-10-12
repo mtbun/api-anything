@@ -16,6 +16,9 @@ export { loadOpenApi, listOperations, findOperation, buildUrl, callOperation, ty
 export { parseCallArgs, type CallArgs } from "./call/args.ts";
 export { recordSession, sameSiteFilter, loadRecordScript, type RecordOptions, type RecordResult, type RecordScript } from "./record/record.ts";
 export { findDependencies, authSources, type Dependency, type DependencyEnd, type DependencyKind } from "./deps/deps.ts";
+export { buildClientModel, type ClientModel, type ClientOperation } from "./client/model.ts";
+export { renderTypeScript } from "./client/typescript.ts";
+export { renderPython } from "./client/python.ts";
 export type { Har, HarEntry } from "./har/types.ts";
 
 export async function analyzeHar(path: string, options: ExtractOptions = {}): Promise<Endpoint[]> {
