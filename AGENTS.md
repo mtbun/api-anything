@@ -59,6 +59,7 @@ test/             tests; test/fixtures/ holds synthetic captures only
 examples/demo-app/  a fake HR app and its recording script, used by the README, the demo GIF and a test
 docs/demo.tape    vhs script that renders docs/demo.gif
 docs/RELEASING.md how a version is released; .github/workflows/release.yml publishes on a v* tag
+.github/          CI, CodeQL, release workflow, Dependabot, issue and PR templates, CODEOWNERS
 scripts/          release tooling (release-notes.mjs prints a CHANGELOG section)
 ```
 
