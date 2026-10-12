@@ -116,7 +116,7 @@ function renderMethod(op: ClientOperation, bodyType: string | undefined, respons
   for (const p of required) args.push(`${ident(p.name)}: ${pyType(p.schema, "", [])}`);
   if (bodyType) args.push(`body: ${bodyType}`);
   for (const p of optional) {
-    const value = p.default === undefined ? "None" : JSON.stringify(p.default);
+    const value = p.default === undefined ? "None" : typeof p.default === "boolean" ? (p.default ? "True" : "False") : JSON.stringify(p.default);
     args.push(`${ident(p.name)}: Optional[${pyType(p.schema, "", [])}] = ${value}`);
   }
 

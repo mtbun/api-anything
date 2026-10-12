@@ -181,21 +181,21 @@ function pathParameters(endpoint: Endpoint): OpenApiParameter[] {
     const match = /^\{(.+)\}$/.exec(segment);
     if (!match) return [];
     const values = samples.map((s) => decodeURIComponent(s[index] ?? "")).filter(Boolean);
-    return [{ name: match[1]!, in: "path" as const, required: true, schema: pathValueSchema(values) }];
+    return [{ name: match[1]!, in: "path" as const, required: true, schema: scalarSchema(values) }];
   });
 }
 
-function pathValueSchema(values: string[]): JsonSchema {
+// Types a parameter from the string values it was observed with, so agents
+// and generated clients know to pass 42, true, 2026-10-12 or a UUID.
+export function scalarSchema(values: string[]): JsonSchema {
   const examples = [...new Set(values)].slice(0, 3);
-  if (values.length > 0 && values.every((v) => /^\d+$/.test(v))) {
-    return { type: "integer", examples: examples.map(Number) };
-  }
-  if (values.length > 0 && values.every((v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v))) {
-    return { type: "string", format: "uuid", examples };
-  }
-  if (values.length > 0 && values.every((v) => /^\d{4}-\d{2}-\d{2}$/.test(v))) {
-    return { type: "string", format: "date", examples };
-  }
+  const all = (pattern: RegExp) => values.length > 0 && values.every((v) => pattern.test(v));
+  if (all(/^-?\d+$/)) return { type: "integer", examples: examples.map(Number) };
+  if (all(/^-?\d+\.\d+$|^-?\d+$/)) return { type: "number", examples: examples.map(Number) };
+  if (all(/^(true|false)$/i)) return { type: "boolean", examples: examples.map((v) => v.toLowerCase() === "true") };
+  if (all(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) return { type: "string", format: "uuid", examples };
+  if (all(/^\d{4}-\d{2}-\d{2}$/)) return { type: "string", format: "date", examples };
+  if (all(/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/)) return { type: "string", format: "date-time", examples };
   return examples.length > 0 ? { type: "string", examples } : { type: "string" };
 }
 
@@ -203,10 +203,11 @@ function queryParameters(endpoint: Endpoint): OpenApiParameter[] {
   return endpoint.queryParameters
     .filter((p) => !p.credential)
     .map((p) => {
-      const numeric = p.examples.length > 0 && p.examples.every((v) => /^\d+$/.test(v));
-      const schema: JsonSchema = numeric ? { type: "integer", examples: p.examples.map(Number) } : { type: "string", examples: p.examples };
+      const schema = scalarSchema(p.examples);
       // A value the web app always sends becomes a default, so callers need not repeat it.
-      if (p.constant !== undefined) schema.default = numeric ? Number(p.constant) : p.constant;
+      if (p.constant !== undefined) {
+        schema.default = schema.type === "integer" || schema.type === "number" ? Number(p.constant) : schema.type === "boolean" ? p.constant.toLowerCase() === "true" : p.constant;
+      }
       return { name: p.name, in: "query" as const, required: p.required && p.constant === undefined, schema };
     });
 }
