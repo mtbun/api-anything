@@ -85,7 +85,11 @@ test("buildUrl fills path and query parameters", () => {
     "https://staging.example.test/api/v1/orders?page=2&status=closed",
   );
   assert.equal(buildUrl(doc, "listOrders", { page: "2" }), "https://erp.example.test/api/v1/orders?page=2&status=open", "defaults fill in");
-  assert.equal(buildUrl(doc, "getOrder", { orderId: "a/b" }), "https://erp.example.test/api/v1/orders/a%2Fb");
+  assert.equal(
+    buildUrl(doc, "listOrders", { page: "1", sort: "date desc&x" }),
+    "https://erp.example.test/api/v1/orders?page=1&sort=date+desc%26x&status=open",
+    "values are URL-encoded",
+  );
 });
 
 test("buildUrl rejects missing, unknown and misspelled parameters with guidance", () => {
@@ -136,4 +140,11 @@ test("parseCallArgs separates parameters from call options", () => {
   );
   assert.throws(() => parseCallArgs(["--status"]), /--status needs a value/);
   assert.throws(() => parseCallArgs(["open"]), /unexpected argument: open/);
+});
+
+test("call rejects a value that does not fit the observed type, before sending", () => {
+  assert.throws(() => buildUrl(doc, "getOrder", { orderId: "abc" }), /--orderId must be an integer, got "abc"/);
+  assert.throws(() => buildUrl(doc, "listOrders", { page: "two" }), /--page must be an integer/);
+  const ops = listOperations(doc);
+  assert.equal(ops.find((o) => o.operationId === "listCustomerInvoices")!.parameters[0]!.type, "uuid", "ops shows the format");
 });

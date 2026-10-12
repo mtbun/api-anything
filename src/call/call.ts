@@ -62,7 +62,7 @@ export function listOperations(doc: OpenApiDocument): OperationSummary[] {
           name: p.name,
           in: p.in,
           required: p.required,
-          type: typeof p.schema.type === "string" ? p.schema.type : undefined,
+          type: p.schema.format ?? (typeof p.schema.type === "string" ? p.schema.type : undefined),
           default: p.schema.default === undefined ? undefined : String(p.schema.default),
         })),
         hasBody: op.requestBody !== undefined,
@@ -180,6 +180,34 @@ function checkParams(operationId: string, declared: OpenApiParameter[], given: R
   }
   const missing = declared.filter((p) => p.required && given[p.name] === undefined).map((p) => `--${p.name}`);
   if (missing.length > 0) throw new Error(`${operationId} needs ${missing.join(", ")}`);
+
+  for (const p of declared) {
+    const value = given[p.name];
+    if (value === undefined) continue;
+    const expected = formatProblem(value, p.schema.format ?? (typeof p.schema.type === "string" ? p.schema.type : undefined));
+    if (expected) throw new Error(`--${p.name} must be ${expected}, got "${value}"`);
+  }
+}
+
+// Checks a value against the type observed for the parameter; returns what
+// was expected when it does not fit.
+function formatProblem(value: string, type: string | undefined): string | undefined {
+  switch (type) {
+    case "integer":
+      return /^-?\d+$/.test(value) ? undefined : "an integer";
+    case "number":
+      return /^-?\d+(\.\d+)?$/.test(value) ? undefined : "a number";
+    case "boolean":
+      return /^(true|false)$/i.test(value) ? undefined : "true or false";
+    case "date":
+      return /^\d{4}-\d{2}-\d{2}$/.test(value) ? undefined : "a date like 2026-10-12";
+    case "date-time":
+      return /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(value) ? undefined : "a date-time like 2026-10-12T09:30:00Z";
+    case "uuid":
+      return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value) ? undefined : "a UUID";
+    default:
+      return undefined;
+  }
 }
 
 function serverFor(doc: OpenApiDocument, op: OpenApiOperation): string {

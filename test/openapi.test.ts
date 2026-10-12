@@ -70,3 +70,15 @@ test("operations on a secondary origin get their own server", () => {
   assert.equal(doc.paths["/a"]!.get!.servers, undefined);
   assert.deepEqual(doc.paths["/b"]!.get!.servers, [{ url: "https://files.example.test" }]);
 });
+
+test("scalarSchema types parameters from their observed values", async () => {
+  const { scalarSchema } = await import("../src/openapi/export.ts");
+  assert.deepEqual(scalarSchema(["12", "-3"]), { type: "integer", examples: [12, -3] });
+  assert.deepEqual(scalarSchema(["1.5", "2"]), { type: "number", examples: [1.5, 2] });
+  assert.deepEqual(scalarSchema(["true", "False"]), { type: "boolean", examples: [true, false] });
+  assert.equal(scalarSchema(["2026-10-12"]).format, "date");
+  assert.equal(scalarSchema(["2026-10-12T09:30:00Z"]).format, "date-time");
+  assert.equal(scalarSchema(["3f2b8c1e-9a4d-4e6f-8b2a-1c3d5e7f9a0b"]).format, "uuid");
+  assert.deepEqual(scalarSchema(["open", "12"]), { type: "string", examples: ["open", "12"] }, "mixed values stay strings");
+  assert.deepEqual(scalarSchema([]), { type: "string" });
+});

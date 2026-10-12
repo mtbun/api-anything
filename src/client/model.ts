@@ -31,7 +31,7 @@ export interface ClientParam {
   name: string;
   schema: JsonSchema;
   required: boolean;
-  default?: string | number;
+  default?: string | number | boolean;
 }
 
 export function buildClientModel(doc: OpenApiDocument): ClientModel {
@@ -44,7 +44,8 @@ export function buildClientModel(doc: OpenApiDocument): ClientModel {
       const params = op.parameters ?? [];
       const toParam = (p: (typeof params)[number]): ClientParam => {
         const param: ClientParam = { name: p.name, schema: p.schema, required: p.required };
-        if (typeof p.schema.default === "string" || typeof p.schema.default === "number") param.default = p.schema.default;
+        const d = p.schema.default;
+        if (typeof d === "string" || typeof d === "number" || typeof d === "boolean") param.default = d;
         return param;
       };
       const success = Object.entries(op.responses).find(([code]) => code.startsWith("2"))?.[1];
