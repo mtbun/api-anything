@@ -19,7 +19,8 @@ The web interface of such a system already talks to a server through structured 
 ## How does it work?
 
 ```
-1. Record     Use the system normally in a browser and save the session as a HAR file.
+1. Record     `api-anything record <url>` opens a browser; use the system as usual and
+              close the window. The session is saved as a HAR file.
 2. Analyze    api-anything filters out pages and assets and keeps the application calls.
 3. Describe   Calls to the same operation are merged: /orders/1042 and /orders/1043
               become GET /orders/{orderId}, with query parameters and JSON schemas
@@ -43,6 +44,7 @@ Requirements: Node.js 22 or newer.
 git clone https://github.com/mtbun/api-anything.git
 cd api-anything
 npm install
+npm run cli -- record https://erp.yourcompany.com --out capture.har   # or try the bundled example:
 npm run cli -- analyze test/fixtures/erp-session.har
 ```
 
@@ -122,9 +124,18 @@ npm run cli -- verify capture.har
 - `--base-url https://staging.example.com` replays against another environment, `--delay <ms>` spaces requests out (default 250 ms), `--json` prints machine-readable results.
 - The command exits with code 2 if any operation failed or drifted, so scripts and agents can act on it.
 
-### How do I record a HAR file?
+### How do I record a session?
 
-In Chrome or Edge: open DevTools (F12) → **Network** tab → tick **Preserve log** → use the system as you normally would → right-click the request list → **Save all as HAR with content**. Firefox has the same option in its Network panel.
+```bash
+api-anything record https://erp.yourcompany.com --out capture.har
+```
+
+A browser window opens at that address. Log in and do the tasks you want to automate: open the order list, filter it, open an order, save a form. Close the window (or press Ctrl+C in the terminal) and the session is written to `capture.har`.
+
+- Only the system's own domain and its subdomains are recorded (`erp.acme.com` also records `api.acme.com`), so analytics and CDN traffic stay out. `--all-origins` records everything.
+- `--channel chrome` or `--channel msedge` uses the browser already installed on your machine. Otherwise run `npx playwright install chromium` once.
+
+You can also export a HAR by hand. In Chrome or Edge, open DevTools (F12) → **Network** tab → tick **Preserve log** → use the system as you normally would → right-click the request list → **Save all as HAR with content**. Firefox has the same option in its Network panel.
 
 A HAR file contains everything the browser sent and received, including session cookies. Treat it like a password: keep it local and do not commit it. The repository's `.gitignore` excludes `*.har` outside the test fixtures.
 
@@ -154,6 +165,7 @@ Browser automation is still the right tool when a task depends on what is render
 
 api-anything is early. What exists today and what is planned:
 
+- [x] `record`: capture a session in a real browser without exporting a HAR by hand
 - [x] HAR parsing, with pages and static assets filtered out
 - [x] Path templating: numeric IDs, UUIDs, dates and opaque IDs become named parameters
 - [x] Grouping of calls into operations with call counts and status codes
@@ -163,7 +175,6 @@ api-anything is early. What exists today and what is planned:
 - [x] OpenAPI 3.1 export with REST-style operation IDs and typed parameters
 - [x] Command-line calls: `session`, `ops` and `call` with parameter checking and a separate, private session file
 - [x] Replay verification: verified / drifted / failed / skipped per operation, with reasons and schema differences; writes only on request
-- [ ] Session capture with Playwright, without manual HAR export
 - [ ] Session and request-dependency mapping (which call provides the token or ID the next call needs)
 - [ ] MCP server as an optional thin layer over `call`
 - [ ] Typed client generation (TypeScript and Python)

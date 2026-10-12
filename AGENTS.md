@@ -11,7 +11,9 @@ api-anything turns the recorded traffic of a normal browser session (a HAR file)
 ```bash
 npm install
 npm test             # node:test via tsx, must pass before every commit
+npx playwright install chromium   # once, for the recording test
 npm run typecheck    # tsc --noEmit, must be clean
+npm run cli -- record <url> [--out capture.har] [--all-origins] [--channel chrome]
 npm run cli -- analyze test/fixtures/erp-session.har [--json]
 npm run cli -- openapi test/fixtures/erp-session.har [--out file] [--title t]
 npm run cli -- verify <capture.har> [--base-url url] [--allow-writes] [--delay ms] [--json]
@@ -23,6 +25,7 @@ npm run cli -- call <openapi.json> <operationId> [--<param> value]... [--body js
 ## Layout
 
 ```
+src/record/       browser recording with Playwright (headed by default)
 src/har/          HAR types and parsing; decides which entries are API calls
 src/endpoints/    path templating and grouping of calls into operations
 src/schema/       deterministic JSON schema inference and merging
