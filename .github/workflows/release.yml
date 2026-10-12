@@ -1,7 +1,9 @@
 name: Release
 
 # Publishes to npm and creates a GitHub release when a version tag is pushed.
-# See docs/RELEASING.md. Needs the NPM_TOKEN repository secret.
+# See docs/RELEASING.md. Publishing uses npm trusted publishing (OIDC): no
+# long-lived npm token is stored. The job runs in the "npm" environment, which
+# waits for the maintainer's approval before anything is published.
 
 on:
   push:
@@ -14,13 +16,13 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: npm
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          registry-url: https://registry.npmjs.org
       - name: Tag matches package.json
         run: |
           test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME" \
@@ -31,9 +33,16 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run typecheck
       - run: npm test
-      - run: npm publish --provenance --access public
+      # Trusted publishing needs npm 11.5.1 or newer.
+      - run: npm install -g npm@latest
+      - name: Publish
+        run: |
+          # Only for the very first release, before the package exists on npm and a
+          # trusted publisher can be configured. Remove the secret afterwards.
+          if [ -n "$NPM_TOKEN" ]; then echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc; fi
+          npm publish --provenance --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file release-notes.md
         env:
           GH_TOKEN: ${{ github.token }}
