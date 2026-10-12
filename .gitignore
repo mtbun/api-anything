@@ -1,0 +1,9 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.har
+!test/fixtures/*.har
+captures/
+output/
+.DS_Store
