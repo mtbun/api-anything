@@ -12,6 +12,7 @@ export interface ApiCall {
   requestBodyText: string | undefined;
   requestMimeType: string | undefined;
   status: number;
+  responseHeaders: HarNameValue[];
   responseBody: unknown;
   responseMimeType: string | undefined;
   startedAt: string | undefined;
@@ -68,6 +69,7 @@ function toApiCall(entry: HarEntry): ApiCall {
     requestBodyText: request.postData?.text,
     requestMimeType: request.postData?.mimeType,
     status: response.status,
+    responseHeaders: response.headers,
     responseBody: parseBody(decode(response.content.text, response.content.encoding), response.content.mimeType),
     responseMimeType: response.content.mimeType,
     startedAt: entry.startedDateTime,

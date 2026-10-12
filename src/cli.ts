@@ -2,6 +2,9 @@
 import { readFile, writeFile } from "node:fs/promises";
 import {
   analyzeHar,
+  authSources,
+  findDependencies,
+  groupEndpoints,
   loadRecordScript,
   callOperation,
   DEFAULT_SESSION_PATH,
@@ -27,6 +30,7 @@ Usage:
   api-anything analyze <capture.har> [--json]
   api-anything openapi <capture.har> [--out <file>] [--title <title>] [--version <version>]
   api-anything verify  <capture.har> [--base-url <url>] [--allow-writes] [--delay <ms>] [--json]
+  api-anything deps    <capture.har> [--json]
   api-anything session <capture.har> [--out <file>]
   api-anything ops     <openapi.json> [--json]
   api-anything call    <openapi.json> <operationId> [--<param> <value>]... [--body <json|@file>]
@@ -47,6 +51,9 @@ Commands:
             report each as verified, drifted, failed or skipped. Only reads are
             replayed unless --allow-writes is set. Exit code 2 if anything
             failed or drifted.
+  deps      Show which values flow from one call's response into later
+            calls: credentials (token, cookie) and data (IDs). Also shows
+            which operation to repeat to log in again.
   session   Save the session headers (cookies, tokens) from a capture to
             ${DEFAULT_SESSION_PATH} (mode 600) for use by 'call'.
   ops       List the operations in an OpenAPI document with their parameters.
@@ -76,6 +83,8 @@ async function main(argv: string[]): Promise<number> {
       return openapi(file, parseFlags(rest));
     case "verify":
       return verify(file, parseFlags(rest));
+    case "deps":
+      return deps(file, parseFlags(rest));
     case "session":
       return session(file, parseFlags(rest));
     case "ops":
@@ -134,8 +143,10 @@ async function analyze(file: string, flags: Flags): Promise<number> {
 }
 
 async function openapi(file: string, flags: Flags): Promise<number> {
-  const endpoints = await analyzeHar(file);
-  const json = JSON.stringify(toOpenApi(endpoints, { title: flags.title, version: flags.version }), null, 2) + "\n";
+  const calls = extractApiCalls(await loadHar(file));
+  const endpoints = groupEndpoints(calls);
+  const document = toOpenApi(endpoints, { title: flags.title, version: flags.version, dependencies: findDependencies(calls) });
+  const json = JSON.stringify(document, null, 2) + "\n";
   if (flags.out) {
     await writeFile(flags.out, json);
     process.stderr.write(`Wrote ${endpoints.length} operations to ${flags.out}\n`);
@@ -154,6 +165,34 @@ async function verify(file: string, flags: Flags): Promise<number> {
   if (flags.json) process.stdout.write(JSON.stringify(results, null, 2) + "\n");
   else printVerification(results);
   return results.some((r) => r.verdict === "failed" || r.verdict === "drifted") ? 2 : 0;
+}
+
+async function deps(file: string, flags: Flags): Promise<number> {
+  const found = findDependencies(extractApiCalls(await loadHar(file)));
+  if (flags.json) {
+    process.stdout.write(JSON.stringify({ dependencies: found, authSources: authSources(found) }, null, 2) + "\n");
+    return 0;
+  }
+  if (found.length === 0) {
+    process.stdout.write("No values flow between calls in this capture.\n");
+    return 0;
+  }
+  for (const kind of ["auth", "data"] as const) {
+    const group = found.filter((d) => d.kind === kind);
+    if (group.length === 0) continue;
+    process.stdout.write(kind === "auth" ? "Credentials\n" : "Data\n");
+    for (const d of group) {
+      process.stdout.write(
+        `  ${d.from.operation}  ${d.from.location}\n    -> ${d.to.operation}  ${d.to.location}  (${d.count}x, e.g. ${d.example})\n`,
+      );
+    }
+  }
+  const sources = authSources(found);
+  if (sources.length > 0) {
+    const ops = [...new Set(sources.map((s) => s.operation))];
+    process.stdout.write(`\nTo log in again, repeat: ${ops.join(", ")}\n`);
+  }
+  return 0;
 }
 
 async function session(file: string, flags: Flags): Promise<number> {
