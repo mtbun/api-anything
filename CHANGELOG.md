@@ -35,6 +35,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - POST actions are named after the action (`queryIndexProduct`, `login`), and POSTs that only read (`query`, `search`, `find`, `lookup`, `count`, ...) are treated as reads by `call`, `ops` and `verify`. (#10)
 - Documentation positions api-anything for any web app, led by multi-tenant SaaS, instead of internal systems only. (#9)
 
+### Security
+
+- Fixed the findings of the first CodeQL scan: regular expressions that could be made slow by crafted paths or values in a capture (path placeholders in client generation, the email format check) are now linear; non-standard HTTP methods in a capture are ignored so they cannot become object keys; the release-notes script validates and fully escapes the version. (#22)
+
 ### Fixed
 
 Found by recording a real HR portal (#14, #16):
