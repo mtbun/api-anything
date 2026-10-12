@@ -122,7 +122,7 @@ function renderMethod(op: ClientOperation, bodyType: string | undefined, respons
 
   const path = op.pathParams.length === 0
     ? JSON.stringify(op.path)
-    : `${JSON.stringify(op.path.replace(/\{([^}]+)\}/g, (_, name: string) => `{${ident(name)}}`))}.format(${op.pathParams
+    : `${JSON.stringify(op.path.replace(/\{([^{}]+)\}/g, (_, name: string) => `{${ident(name)}}`))}.format(${op.pathParams
         .map((p) => `${ident(p.name)}=urllib.parse.quote(str(${ident(p.name)}), safe="")`)
         .join(", ")})`;
   const query = `{${op.queryParams.map((p: ClientParam) => `${JSON.stringify(p.name)}: ${ident(p.name)}`).join(", ")}}`;

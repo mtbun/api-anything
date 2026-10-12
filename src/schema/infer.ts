@@ -105,7 +105,8 @@ function toArray(type: JsonSchema["type"]): string[] {
 function withFormat(schema: JsonSchema, value: string): JsonSchema {
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) return { ...schema, format: "date-time" };
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return { ...schema, format: "date" };
-  if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)) return { ...schema, format: "email" };
+  // Dots separate the domain labels unambiguously, so this stays linear on any input.
+  if (value.length <= 320 && /^[^@\s]+@[^@\s.]+(?:\.[^@\s.]+)+$/.test(value)) return { ...schema, format: "email" };
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
     return { ...schema, format: "uuid" };
   }

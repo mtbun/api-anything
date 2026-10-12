@@ -25,6 +25,10 @@ const STATIC_EXTENSIONS = new Set([
 
 const API_RESOURCE_TYPES = new Set(["xhr", "fetch"]);
 
+// Methods become object keys in the OpenAPI document; anything else in a
+// capture (a typo, or a crafted "__proto__") is not an API call.
+const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);
+
 // Traffic that every site sends but that is never the app's own API:
 // analytics, tag managers, error and session reporting, bot challenges.
 const NOISE_HOSTS = [
@@ -98,6 +102,7 @@ export function isApiEntry(entry: HarEntry): boolean {
     return false;
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  if (!HTTP_METHODS.has(entry.request.method.toUpperCase())) return false;
   // Status 0 or below means the request never got an answer (aborted,
   // blocked, offline); there is nothing to learn from it.
   if (entry.response.status <= 0) return false;

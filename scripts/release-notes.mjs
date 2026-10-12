@@ -3,12 +3,13 @@
 import { readFileSync } from "node:fs";
 
 const version = process.argv[2];
-if (!version) {
-  console.error("usage: node scripts/release-notes.mjs <version>");
+if (!version || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) {
+  console.error("usage: node scripts/release-notes.mjs <version>, e.g. 1.0.0");
   process.exit(1);
 }
 const changelog = readFileSync(new URL("../CHANGELOG.md", import.meta.url), "utf8");
-const start = changelog.search(new RegExp(`^## \\[${version.replace(/\./g, "\\.")}\\]`, "m"));
+const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const start = changelog.search(new RegExp(`^## \\[${escaped}\\]`, "m"));
 if (start === -1) {
   console.error(`CHANGELOG.md has no section for ${version}; move the Unreleased entries under "## [${version}] - <date>" first`);
   process.exit(1);

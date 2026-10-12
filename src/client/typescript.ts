@@ -113,7 +113,7 @@ function renderMethod(op: ClientOperation, base: string, hasParams: boolean): st
 
   let path = JSON.stringify(op.path);
   if (op.pathParams.length > 0) {
-    path = "`" + op.path.replace(/\{([^}]+)\}/g, (_, name: string) => `\${encodeURIComponent(String(params[${JSON.stringify(name)}]))}`) + "`";
+    path = "`" + op.path.replace(/\{([^{}]+)\}/g, (_, name: string) => `\${encodeURIComponent(String(params[${JSON.stringify(name)}]))}`) + "`";
   }
   const query = op.queryParams
     .map((p) => {

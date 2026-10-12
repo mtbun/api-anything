@@ -175,3 +175,23 @@ test("SignalR negotiate handshakes are noise", async () => {
   assert.ok(isNoise(new URL("https://app.example.test/api/hubs/presence/negotiate?negotiateVersion=1")));
   assert.ok(!isNoise(new URL("https://app.example.test/api/contracts/negotiate")), "a business 'negotiate' without the handshake parameter stays");
 });
+
+test("hostile values in a capture stay fast and harmless", async () => {
+  const { inferSchema, renderTypeScript, renderPython, extractApiCalls } = await import("../src/index.ts");
+  // Patterns CodeQL flagged as slow regular expressions on crafted input.
+  let started = performance.now();
+  inferSchema("!@!." + "!.".repeat(50_000));
+  assert.ok(performance.now() - started < 500, "email format check is linear");
+
+  const model = {
+    title: "t", server: "https://a.example.test",
+    operations: [{ name: "op", method: "GET", path: "/" + "{{|".repeat(20_000), server: "https://a.example.test", summary: "s", writes: false, pathParams: [], queryParams: [], credentialQuery: [] }],
+  };
+  started = performance.now();
+  renderTypeScript(model);
+  renderPython(model);
+  assert.ok(performance.now() - started < 500, "path placeholder replacement is linear");
+
+  const har = { log: { entries: [{ request: { method: "__proto__", url: "https://a.example.test/api/x", headers: [] }, response: { status: 200, headers: [], content: { mimeType: "application/json", text: "{}" } } }] } };
+  assert.deepEqual(extractApiCalls(har), [], "non-standard methods are not API calls");
+});
