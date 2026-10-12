@@ -33,7 +33,9 @@ client  <openapi.json> --lang ts|py [--out file]
 verify  <capture.har> [--base-url url] [--allow-writes] [--delay ms] [--json] [--keep-noise]
 ```
 
-Exit codes: 0 success, 1 usage or input error, 2 non-2xx response (`call`) or failed/drifted operations (`verify`).
+Exit codes: 0 success, 1 usage or input error, 2 non-2xx response (`call`) or failed/drifted operations (`verify`). `--version` prints the version; `--help` works after any command.
+
+Errors are written to stderr as one line starting with `error:` and say what to do next. Keep new errors in that form; never let a raw stack trace or a bare library message (`fetch failed`, `ENOENT`) reach the user.
 
 ## Layout
 

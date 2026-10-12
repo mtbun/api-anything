@@ -98,7 +98,7 @@ Without `npm link`, run the same commands as `npm run cli -- <command> ...` insi
 | `client <openapi.json> --lang ts\|py` | Generates a typed, dependency-free client with one method per operation |
 | `verify <capture.har>` | Replays operations against the live app and reports drift |
 
-Exit codes: `0` success, `1` usage or input error, `2` the app answered with a non-2xx status (`call`) or an operation failed or drifted (`verify`).
+Exit codes: `0` success, `1` usage or input error, `2` the app answered with a non-2xx status (`call`) or an operation failed or drifted (`verify`). `api-anything --version` prints the version and `--help` works after any command.
 
 ## How do I record a session?
 
@@ -354,6 +354,24 @@ They are never stored. Logging in is done by a person in a real browser; api-any
 ### Can I use it with apps I do not have access to?
 
 It works with the access you already have. You record a session as a user who can log in to the app; api-anything does not create accounts, bypass logins or grant permissions the user does not have.
+
+## Troubleshooting
+
+### Why does `openapi` say "no API calls found"?
+
+The capture holds no calls that look like the app's own API. Record while the app actually loads data (open lists, search, open a record), not only the start page. If the app's API lives on a different domain than the page (for example `app.example.com` calling `api.other-example.net`), record with `--all-origins`. If the calls are being filtered as analytics or telemetry, `--keep-noise` shows them.
+
+### Why does `call` say "could not reach"?
+
+The host did not answer: it does not resolve, refused the connection, or did not answer before the timeout. Check `--base-url`, VPN access for internal apps, and that the app is up. The message names the host and the reason.
+
+### Why does `call` say the body is not valid JSON?
+
+Operations with a JSON body check `--body` before sending anything. Quote the JSON for your shell (`--body '{"name":"x"}'`) or put it in a file and pass `--body @body.json`.
+
+### Why do I get 401 or 403?
+
+The session in `.api-anything/session.json` has expired. Run `api-anything refresh <url> --state .api-anything/state.json`, or add `--refresh-state` to `call` so it renews and retries automatically. If the saved browser state has expired as well, log in again with `record --save-state`.
 
 ## For AI agents
 
