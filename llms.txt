@@ -1,22 +1,27 @@
 # api-anything
 
-> api-anything turns any web app into an API: typed operations, OpenAPI 3.1 documents and command-line calls that AI agents and scripts can use, built by analyzing the traffic of a normal browser session. It targets the web apps people sign in to, such as SaaS tools for HR, payroll, accounting, CRM, e-commerce and logistics, ERPs, supplier portals and admin panels, especially where no API is available or the API covers only part of the app.
+> api-anything turns any web app into an API: typed operations, OpenAPI 3.1 documents and command-line calls that AI agents and scripts can use, built from the traffic of a normal browser session. It targets the web apps people sign in to, such as SaaS tools for HR, payroll, accounting, CRM, e-commerce and logistics, ERPs, supplier portals and admin panels, especially where no API is available or the API covers only part of the app.
 
-Key facts:
+## How it works
 
-- Input: a session recorded with `api-anything record <url>` (opens a browser; the user works normally and closes it) or a HAR file exported from browser DevTools. AI agents can record by writing a Playwright script and running `api-anything record <url> --script steps.ts --state state.json`, reusing a login the user saved once with --save-state.
-- Output: API operations with HTTP method, templated path (for example GET /orders/{orderId}), query parameters marked required or optional, and JSON schemas for request and response bodies inferred from every observed call.
-- The analysis is deterministic, runs locally, makes no network calls and needs no API key.
-- Written in TypeScript for Node.js 22+. MIT licensed.
-- Exports an OpenAPI 3.1 document with REST-style operation IDs (listOrders, getOrder, createOrder) via `api-anything openapi <capture.har>`.
-- Verifies operations with `api-anything verify <capture.har>`: replays one recorded call per operation and reports verified, drifted (with JSON-path differences), failed (with a reason such as an expired session) or skipped. Only read requests are replayed unless --allow-writes is given.
-- Calls operations from the command line: `api-anything ops openapi.json` lists them, `api-anything call openapi.json getOrder --orderId 1042` runs one and prints the JSON body to stdout. Session headers come from a private local file created by `api-anything session <capture.har>`; writes need --allow-writes.
-- Maps dependencies with `api-anything deps <capture.har>`: which response issues the token or cookie later requests use (and so which operation to repeat to log in again), and which IDs flow from one operation into the next; exported as OpenAPI links.
-- Renews expired sessions with `call --refresh-state <state.json>` or `api-anything refresh <url> --state <state.json>`: the system is opened headless from a browser login the user saved once; no password is stored or replayed.
-- Status: early. Implemented: browser recording, dependency mapping, session refresh, HAR analysis, OpenAPI export, replay verification, command-line calls. Planned: typed clients, an optional MCP layer.
+1. Record: `api-anything record <url>` opens a browser; the user works normally and closes it, and the session is saved as a HAR file. An AI agent can record with its own Playwright script: `api-anything record <url> --script steps.ts --state state.json`, reusing a login the user saved once with `--save-state`.
+2. Analyze: `api-anything analyze <capture.har>` lists operations with HTTP method, templated path (for example GET /orders/{orderId}), query parameters marked required or optional, and JSON schemas inferred from every observed call.
+3. Map: `api-anything deps <capture.har>` shows which response issues the token or cookie later requests use, and which IDs flow from one operation into the next.
+4. Export: `api-anything openapi <capture.har>` writes an OpenAPI 3.1 document with REST-style operation IDs (listOrders, getOrder, createOrder), typed parameters and links between operations.
+5. Call: `api-anything ops openapi.json` lists operations; `api-anything call openapi.json getOrder --orderId 1042` runs one and prints the JSON body to stdout. Session headers come from a private local file created by `api-anything session <capture.har>`. Writes need --allow-writes.
+6. Keep alive: `call --refresh-state state.json` renews an expired session from the saved browser login and retries once; `api-anything verify <capture.har>` replays operations and reports verified, drifted (with JSON-path differences), failed (with a reason) or skipped.
+
+## Key facts
+
+- Passwords are never stored and the login request is never replayed; only cookies, tokens and browser state are kept, in files with mode 600.
+- Analysis is deterministic, runs locally and needs no API key or AI model.
+- Exit codes: 0 success, 1 usage error, 2 non-2xx response or failed verification.
+- Written in TypeScript for Node.js 22+, uses Playwright for recording. MIT licensed.
+- Status: early. Planned: typed clients, an optional MCP layer, npm release.
 
 ## Docs
 
-- [README](https://github.com/mtbun/api-anything/blob/main/README.md): what it is, quick start, use cases, FAQ
+- [README](https://github.com/mtbun/api-anything/blob/main/README.md): what it is, quick start, commands, use cases, FAQ
 - [AGENTS.md](https://github.com/mtbun/api-anything/blob/main/AGENTS.md): instructions for AI coding agents
+- [CHANGELOG.md](https://github.com/mtbun/api-anything/blob/main/CHANGELOG.md): what changed
 - [CONTRIBUTING.md](https://github.com/mtbun/api-anything/blob/main/CONTRIBUTING.md): development workflow

@@ -4,54 +4,64 @@ Instructions for AI coding agents (Claude Code, Codex, Cursor, Gemini CLI) worki
 
 ## What this project is
 
-api-anything turns the recorded traffic of a normal browser session (a HAR file) into API operations: method, templated path, query parameters and inferred JSON schemas. The goal is to make any web app (SaaS tools, ERPs, portals, admin panels) callable by agents and scripts, especially where no API is available.
+api-anything turns any web app into an API. It records a normal browser session (a HAR file), describes the application calls behind the web UI as operations (method, templated path, parameters, JSON schemas), traces how values flow between them, exports OpenAPI 3.1, and lets agents and scripts call the operations from the command line. Target apps are the ones people sign in to: SaaS tools (HR, payroll, accounting, CRM, e-commerce, logistics), ERPs, portals and admin panels, especially where no API is available.
 
 ## Commands
 
 ```bash
 npm install
-npm test             # node:test via tsx, must pass before every commit
-npx playwright install chromium   # once, for the recording test
-npm run typecheck    # tsc --noEmit, must be clean
-npm run cli -- record <url> [--out capture.har] [--all-origins] [--channel chrome]
-               [--script steps.ts] [--headless|--headed] [--state file] [--save-state file]
-npm run cli -- analyze test/fixtures/erp-session.har [--json]
-npm run cli -- openapi test/fixtures/erp-session.har [--out file] [--title t]
-npm run cli -- verify <capture.har> [--base-url url] [--allow-writes] [--delay ms] [--json]
-npm run cli -- deps <capture.har> [--json]
-npm run cli -- session <capture.har> [--out file]
-npm run cli -- ops <openapi.json> [--json]
-npm run cli -- call <openapi.json> <operationId> [--<param> value]... [--body json|@file] [--allow-writes] [--refresh-state file]
-npm run cli -- refresh <url> --state <file> [--out session.json]
+npx playwright install chromium   # once, for the recording and refresh tests
+npm test                          # node:test via tsx, must pass before every commit
+npm run typecheck                 # tsc --noEmit, must be clean
+npm run cli -- <command> ...      # or `api-anything <command>` after `npm link`
 ```
+
+CLI commands:
+
+```bash
+record  <url> [--out capture.har] [--all-origins] [--channel chrome|msedge]
+              [--script steps.ts] [--headless|--headed] [--state file] [--save-state file]
+analyze <capture.har> [--json]
+openapi <capture.har> [--out file] [--title t] [--version v]
+deps    <capture.har> [--json]
+session <capture.har> [--out file]
+ops     <openapi.json> [--json]
+call    <openapi.json> <operationId> [--<param> value]... [--body json|@file]
+        [--session file] [--base-url url] [--allow-writes] [--refresh-state file] [--refresh-url url]
+refresh <url> --state <file> [--out session.json]
+verify  <capture.har> [--base-url url] [--allow-writes] [--delay ms] [--json]
+```
+
+Exit codes: 0 success, 1 usage or input error, 2 non-2xx response (`call`) or failed/drifted operations (`verify`).
 
 ## Layout
 
 ```
-src/record/       browser recording with Playwright (headed by default)
+bin/api-anything.js  command entry point; registers tsx and loads src/cli.ts
+src/cli.ts        argument parsing and one function per command
+src/record/       browser recording with Playwright; scripts and saved browser state
 src/har/          HAR types and parsing; decides which entries are API calls
 src/endpoints/    path templating and grouping of calls into operations
-src/schema/       deterministic JSON schema inference and merging
-src/openapi/      OpenAPI 3.1 export and operationId naming
+src/schema/       JSON schema inference, merging and validation
 src/deps/         value flow between calls: credentials and data dependencies
-src/verify/       replay verification against the live system
-src/session/      session header extraction, the private session file, and refresh from a saved browser login
-src/call/         listing and calling operations from an OpenAPI document
+src/openapi/      OpenAPI 3.1 export, operationId naming, links
+src/session/      session headers, the private session file, refresh from a saved browser login
+src/call/         listing and calling operations from an OpenAPI document; call arguments
+src/verify/       replay verification against the live app
 src/index.ts      public API
-src/cli.ts        command line entry point
 test/             tests; test/fixtures/ holds synthetic captures only
 ```
 
 ## Rules
 
-- **The core is deterministic.** Parsing, grouping and schema inference make no network or model calls. Keep it that way; model-based features go in their own module and must be opt-in.
-- **Nothing writes by default.** `verify` replays only GET/HEAD/OPTIONS and `call` refuses POST/PUT/PATCH/DELETE unless `allowWrites` is set. Keep that default; tests run against a local server, never a real system.
-- **Agents record with scripts, people log in.** `record --script` runs a file that default-exports `async (page, { url }) => {}`. Never type a user's password in a script; start from a state file saved by the user with `--save-state`.
+- **The analysis is deterministic.** Parsing, grouping, schema inference and dependency mapping make no network or model calls. Model-based features, if ever added, go in their own module and must be opt-in.
+- **Nothing writes by default.** `verify` replays only GET/HEAD/OPTIONS and `call` refuses POST/PUT/PATCH/DELETE unless `allowWrites` is set. Keep that default.
+- **Tests never touch a real app.** They run against local HTTP servers and synthetic fixtures; browser tests run headless.
+- **Agents record with scripts, people log in.** `record --script` runs a file that default-exports `async (page, { url }) => {}`. Never type a user's password in a script; start from a state file the user saved with `--save-state`.
 - **Never replay or store a login request.** Sessions are renewed only from a browser state the user saved (`refreshSession`).
-- **Credential values are always masked in output.** `deps` prints only a prefix and length for tokens and cookies.
-- **Credentials never enter the OpenAPI document.** Session headers live only in `.api-anything/session.json` (mode 600, gitignored).
+- **Credentials stay out of shared output.** They never enter the OpenAPI document, are masked in `deps` output, and live only in `.api-anything/` (mode 600, gitignored).
 - **Never commit real captures.** HAR files contain session cookies and account data. Fixtures must be synthetic and use the `example.test` domain.
-- **Every behaviour change gets a test.** Add or update a case in `test/` and keep the fixture minimal.
+- **Every behaviour change gets a test and a docs update.** Update README.md, AGENTS.md, llms.txt and CHANGELOG.md in the same pull request.
 - **Do not drop data silently.** If a body cannot be parsed, keep it as raw text; if an entry is skipped, it must be because a documented rule says so.
 - TypeScript strict, ESM, `.ts` extensions in imports, Node 22+. No build step.
 - Commit messages follow Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`, `ci:`).
