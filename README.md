@@ -6,6 +6,8 @@ It works with the web apps people sign in to every day: SaaS tools for HR, payro
 
 > API anything with agents. Any web app you log in to becomes operations you call with one command.
 
+![api-anything recording a demo HR app, listing its operations, calling one and showing how the calls connect](docs/demo.gif)
+
 [![CI](https://github.com/mtbun/api-anything/actions/workflows/ci.yml/badge.svg)](https://github.com/mtbun/api-anything/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Node 22+](https://img.shields.io/badge/node-%3E%3D22-brightgreen)
@@ -56,7 +58,21 @@ npm link                           # makes the api-anything command available ev
 npx playwright install chromium    # once, for recording (or use --channel chrome)
 ```
 
-Try it on the bundled example capture:
+### Try it without an app of your own
+
+The repository includes a small fake HR app with a sign-in, employees and leave requests:
+
+```bash
+npx tsx examples/demo-app/server.ts &                                          # http://localhost:4010
+api-anything record http://localhost:4010 --script examples/demo-app/steps.ts --out demo.har
+api-anything openapi demo.har --out demo.json && api-anything session demo.har
+api-anything ops demo.json
+api-anything call demo.json listEmployees --status active
+```
+
+`steps.ts` is the kind of script an AI agent writes to record a session; drop `--script` to click through the app yourself. The demo at the top of this page is this run, generated from [`docs/demo.tape`](docs/demo.tape) with [vhs](https://github.com/charmbracelet/vhs).
+
+Or analyze the bundled example capture:
 
 ```bash
 api-anything analyze test/fixtures/erp-session.har
