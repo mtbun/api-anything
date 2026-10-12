@@ -30,6 +30,16 @@ Node.js 22 or newer is required. `npm link` makes the `api-anything` command ava
 - Browser tests run Playwright's Chromium headless and are skipped when it is not installed.
 - Fixtures in `test/fixtures/` must be synthetic. Never add a HAR file recorded from a real app: captures contain session cookies and account data. Use the `example.test` domain and obviously fake credential values.
 
+## Demo
+
+`examples/demo-app/` is a fake HR app used by the README, by `test/demo-app.test.ts`, and by the GIF at the top of the README. When a change alters what the demo shows, regenerate the GIF from the repository root:
+
+```bash
+brew install vhs   # once; see https://github.com/charmbracelet/vhs for other systems
+npm link
+vhs docs/demo.tape
+```
+
 ## Code style
 
 TypeScript strict mode, ES modules, `.ts` extensions in imports, two-space indentation, no build step. Keep the analysis deterministic: no network or model calls outside the commands that are meant to talk to the app (`record`, `refresh`, `verify`, `call`).

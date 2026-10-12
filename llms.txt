@@ -12,6 +12,10 @@
 6. Code: `api-anything client openapi.json --lang ts|py` generates a single-file, dependency-free client (TypeScript with fetch, Python with the standard library) with one typed method per operation and `fromSessionFile` / `from_session_file` to load the session.
 7. Keep alive: `call --refresh-state state.json` renews an expired session from the saved browser login and retries once; `api-anything verify <capture.har>` replays operations and reports verified, drifted (with JSON-path differences), failed (with a reason) or skipped.
 
+## Try it
+
+The repository ships a fake HR app to try the whole flow without an app of your own: `npx tsx examples/demo-app/server.ts`, then `api-anything record http://localhost:4010 --script examples/demo-app/steps.ts --out demo.har`.
+
 ## Key facts
 
 - When a session ends, `call` renews it headless from the saved browser login; when that has ended too, a browser window opens for the person at the terminal to log in and closes by itself. Agents without a terminal are told to ask the user to run `api-anything refresh <url> --interactive`.

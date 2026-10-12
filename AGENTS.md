@@ -56,6 +56,8 @@ src/client/       client generation: a language-neutral model, TypeScript and Py
 src/verify/       replay verification against the live app
 src/index.ts      public API
 test/             tests; test/fixtures/ holds synthetic captures only
+examples/demo-app/  a fake HR app and its recording script, used by the README, the demo GIF and a test
+docs/demo.tape    vhs script that renders docs/demo.gif
 ```
 
 ## Rules
@@ -71,7 +73,7 @@ test/             tests; test/fixtures/ holds synthetic captures only
 - **Secrets never reach disk or documents.** `record` runs `redactHar` before the capture is kept; schema inference keeps no examples for `CREDENTIAL_FIELD` names or JWTs. Any new output path must respect `src/credentials.ts`.
 - **Credentials stay out of shared output.** They never enter the OpenAPI document, are masked in `deps` output, and live only in `.api-anything/` (mode 600, gitignored).
 - **Never commit real captures.** HAR files contain session cookies and account data. Fixtures must be synthetic and use the `example.test` domain. When a real recording reveals a problem, reproduce its pattern in a synthetic fixture (see `test/fixtures/search-app.har`).
-- **Every behaviour change gets a test and a docs update.** Update README.md, AGENTS.md, llms.txt and CHANGELOG.md in the same pull request.
+- **Every behaviour change gets a test and a docs update.** Update README.md, AGENTS.md, llms.txt and CHANGELOG.md in the same pull request. If the output shown in the demo changes, regenerate it: `vhs docs/demo.tape` from the repository root.
 - **Do not drop data silently.** If a body cannot be parsed, keep it as raw text; if an entry is skipped, it must be because a documented rule says so.
 - TypeScript strict, ESM, `.ts` extensions in imports, Node 22+. No build step.
 - Commit messages follow Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`, `ci:`).
