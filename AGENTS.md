@@ -29,6 +29,7 @@ ops     <openapi.json> [--json]
 call    <openapi.json> <operationId> [--<param> value]... [--body json|@file]
         [--session file] [--base-url url] [--allow-writes] [--refresh-state file] [--refresh-url url]
 refresh <url> --state <file> [--out session.json]
+client  <openapi.json> --lang ts|py [--out file]
 verify  <capture.har> [--base-url url] [--allow-writes] [--delay ms] [--json] [--keep-noise]
 ```
 
@@ -48,6 +49,7 @@ src/deps/         value flow between calls: credentials and data dependencies
 src/openapi/      OpenAPI 3.1 export, operationId naming, links
 src/session/      session headers, the private session file, refresh from a saved browser login
 src/call/         listing and calling operations from an OpenAPI document; call arguments
+src/client/       client generation: a language-neutral model, TypeScript and Python renderers
 src/verify/       replay verification against the live app
 src/index.ts      public API
 test/             tests; test/fixtures/ holds synthetic captures only
@@ -57,6 +59,7 @@ test/             tests; test/fixtures/ holds synthetic captures only
 
 - **The analysis is deterministic.** Parsing, grouping, schema inference and dependency mapping make no network or model calls. Model-based features, if ever added, go in their own module and must be opt-in.
 - **Nothing writes by default.** `verify` replays only GET/HEAD/OPTIONS and `call` refuses POST/PUT/PATCH/DELETE unless `allowWrites` is set. Keep that default.
+- **Generated clients stay dependency-free.** TypeScript uses `fetch`; Python uses only the standard library and must run on Python 3.9. Tests type-check the TypeScript output and run both against a local server.
 - **Tests never touch a real app.** They run against local HTTP servers and synthetic fixtures; browser tests run headless.
 - **Agents record with scripts, people log in.** `record --script` runs a file that default-exports `async (page, { url }) => {}`. Never type a user's password in a script; start from a state file the user saved with `--save-state`.
 - **Never replay or store a login request.** Sessions are renewed only from a browser state the user saved (`refreshSession`).
