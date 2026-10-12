@@ -7,3 +7,4 @@ node_modules/
 captures/
 output/
 .DS_Store
+.api-anything/
