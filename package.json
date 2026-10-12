@@ -8,7 +8,7 @@
     "node": ">=22"
   },
   "bin": {
-    "api-anything": "./src/cli.ts"
+    "api-anything": "./bin/api-anything.js"
   },
   "scripts": {
     "cli": "tsx src/cli.ts",
@@ -37,10 +37,16 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
-    "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   },
   "dependencies": {
-    "playwright": "^1.64.0"
-  }
+    "playwright": "^1.64.0",
+    "tsx": "^4.19.2"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ]
 }

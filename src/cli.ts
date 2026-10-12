@@ -1,4 +1,3 @@
-#!/usr/bin/env -S npx tsx
 import { readFile, writeFile } from "node:fs/promises";
 import {
   analyzeHar,
