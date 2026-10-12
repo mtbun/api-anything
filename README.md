@@ -348,7 +348,7 @@ api-anything is early. What exists today:
 Planned:
 
 - [ ] An optional MCP server as a thin layer over `call`
-- [ ] Publishing to npm
+- [ ] Publishing to npm: the release workflow is ready ([docs/RELEASING.md](docs/RELEASING.md)); the first release will be 1.0.0
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed in each step.
 

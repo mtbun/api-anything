@@ -58,6 +58,8 @@ src/index.ts      public API
 test/             tests; test/fixtures/ holds synthetic captures only
 examples/demo-app/  a fake HR app and its recording script, used by the README, the demo GIF and a test
 docs/demo.tape    vhs script that renders docs/demo.gif
+docs/RELEASING.md how a version is released; .github/workflows/release.yml publishes on a v* tag
+scripts/          release tooling (release-notes.mjs prints a CHANGELOG section)
 ```
 
 ## Rules
@@ -76,4 +78,5 @@ docs/demo.tape    vhs script that renders docs/demo.gif
 - **Every behaviour change gets a test and a docs update.** Update README.md, AGENTS.md, llms.txt and CHANGELOG.md in the same pull request. If the output shown in the demo changes, regenerate it: `vhs docs/demo.tape` from the repository root.
 - **Do not drop data silently.** If a body cannot be parsed, keep it as raw text; if an entry is skipped, it must be because a documented rule says so.
 - TypeScript strict, ESM, `.ts` extensions in imports, Node 22+. No build step.
+- **Never publish from a laptop.** Releases happen only by pushing a version tag, as described in docs/RELEASING.md, and only when the maintainer decides.
 - Commit messages follow Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`, `ci:`).

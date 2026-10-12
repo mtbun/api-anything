@@ -15,6 +15,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - `deps <capture.har>`: traces credentials and IDs from the response that issues them to the requests that use them; exported as OpenAPI links and `x-api-anything.providesAuth`. (#7)
 - Session refresh: `call --refresh-state` and `refresh <url> --state` renew an expired session from a saved browser login and retry once, without storing a password. (#8)
 - `api-anything` command via `npm link`, with a Node entry point that runs the TypeScript sources through tsx. (#9)
+- Release workflow: pushing a `v*` tag checks the version and changelog, runs the tests, publishes to npm with provenance and creates the GitHub release from the changelog section; see `docs/RELEASING.md`. Package metadata for npm. (#19)
 - A demo HR app (`examples/demo-app/`) with a recording script, a demo GIF in the README rendered from `docs/demo.tape`, and a test that keeps the demo working. (#18)
 - Interactive login: when the saved browser login has ended, `call` (in a terminal) and `refresh --interactive` open a browser for a person to log in, close it once the app is reached, and continue; `call` uses `.api-anything/state.json` automatically; `--no-interactive` for scripts. (#17)
 - `record`, `session` and `refresh` show how long each saved credential lasts (cookie `Expires`/`Max-Age`, JWT `exp`) and suggest a "remember me" login for short-lived sessions; `call` warns before sending when a known expiry has passed and explains how to log in again after a `401`/`403`. (#16)
