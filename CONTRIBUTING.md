@@ -40,6 +40,10 @@ npm link
 vhs docs/demo.tape
 ```
 
+## Releases
+
+Maintainers release by tagging; see [docs/RELEASING.md](docs/RELEASING.md). Contributors only add their changes to the `## [Unreleased]` section of `CHANGELOG.md`.
+
 ## Code style
 
 TypeScript strict mode, ES modules, `.ts` extensions in imports, two-space indentation, no build step. Keep the analysis deterministic: no network or model calls outside the commands that are meant to talk to the app (`record`, `refresh`, `verify`, `call`).
