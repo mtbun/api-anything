@@ -15,6 +15,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - `deps <capture.har>`: traces credentials and IDs from the response that issues them to the requests that use them; exported as OpenAPI links and `x-api-anything.providesAuth`. (#7)
 - Session refresh: `call --refresh-state` and `refresh <url> --state` renew an expired session from a saved browser login and retry once, without storing a password. (#8)
 - `api-anything` command via `npm link`, with a Node entry point that runs the TypeScript sources through tsx. (#9)
+- Path and query parameters are typed from their observed values (integer, number, boolean, date, date-time, uuid); `ops` shows the format and `call` rejects a value that does not fit, with an example, before sending. (#15)
 - `redact <capture.har>` masks secret fields in hand-exported HAR files; `openapi --no-examples` leaves out every example value for sharing. (#14)
 - `--version`, and `--help` after any command. (#13)
 - `client <openapi.json> --lang ts|py`: generates a single-file, dependency-free TypeScript (fetch) or Python (standard library, 3.9+) client with typed methods, defaults, credential query parameters and session-file loading. (#12)
