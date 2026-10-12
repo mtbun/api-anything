@@ -13,6 +13,7 @@ npm install
 npm test             # node:test via tsx, must pass before every commit
 npm run typecheck    # tsc --noEmit, must be clean
 npm run cli -- analyze test/fixtures/erp-session.har [--json]
+npm run cli -- openapi test/fixtures/erp-session.har [--out file] [--title t]
 ```
 
 ## Layout
@@ -21,6 +22,7 @@ npm run cli -- analyze test/fixtures/erp-session.har [--json]
 src/har/          HAR types and parsing; decides which entries are API calls
 src/endpoints/    path templating and grouping of calls into operations
 src/schema/       deterministic JSON schema inference and merging
+src/openapi/      OpenAPI 3.1 export and operationId naming
 src/index.ts      public API
 src/cli.ts        command line entry point
 test/             tests; test/fixtures/ holds synthetic captures only

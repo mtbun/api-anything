@@ -1,6 +1,6 @@
 # api-anything
 
-> api-anything turns web-based business systems that have no public API (ERPs, internal admin panels, legacy portals) into typed API operations and, on the roadmap, MCP tools for AI agents, by analyzing the HAR traffic of a normal browser session.
+> api-anything turns web-based business systems that have no public API (ERPs, internal admin panels, legacy portals) into typed API operations OpenAPI 3.1 documents and, on the roadmap, MCP tools for AI agents, by analyzing the HAR traffic of a normal browser session.
 
 Key facts:
 
@@ -8,7 +8,8 @@ Key facts:
 - Output: API operations with HTTP method, templated path (for example GET /orders/{orderId}), query parameters marked required or optional, and JSON schemas for request and response bodies inferred from every observed call.
 - The analysis is deterministic, runs locally, makes no network calls and needs no API key.
 - Written in TypeScript for Node.js 22+. MIT licensed.
-- Status: early. Implemented: HAR analysis and the `analyze` CLI. Planned: OpenAPI export, Playwright capture, replay verification, MCP server, typed clients.
+- Exports an OpenAPI 3.1 document with REST-style operation IDs (listOrders, getOrder, createOrder) via `api-anything openapi <capture.har>`.
+- Status: early. Implemented: HAR analysis, `analyze` and `openapi` CLI commands. Planned: Playwright capture, replay verification, MCP server, typed clients.
 
 ## Docs
 
