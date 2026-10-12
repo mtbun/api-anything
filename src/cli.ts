@@ -13,6 +13,7 @@ import {
   saveSession,
   toOpenApi,
   parseCallArgs,
+  recordSession,
   verifyCalls,
   type VerificationResult,
 } from "./index.ts";
@@ -20,6 +21,7 @@ import {
 const USAGE = `api-anything — turn a recorded browser session into API operations
 
 Usage:
+  api-anything record  <url> [--out <capture.har>] [--all-origins] [--channel chrome|msedge]
   api-anything analyze <capture.har> [--json]
   api-anything openapi <capture.har> [--out <file>] [--title <title>] [--version <version>]
   api-anything verify  <capture.har> [--base-url <url>] [--allow-writes] [--delay <ms>] [--json]
@@ -29,6 +31,9 @@ Usage:
                        [--session <file>] [--base-url <url>] [--allow-writes]
 
 Commands:
+  record    Open a browser at <url>, use the system as usual, then close the
+            browser: the session is saved as a HAR file (default capture.har).
+            Only the system's own domain is recorded unless --all-origins.
   analyze   List the API operations found in a HAR capture.
   openapi   Write an OpenAPI 3.1 document describing the operations.
   verify    Replay one recorded call per operation against the live system and
@@ -56,6 +61,8 @@ async function main(argv: string[]): Promise<number> {
   }
 
   switch (command) {
+    case "record":
+      return record(file, parseFlags(rest));
     case "analyze":
       return analyze(file, parseFlags(rest));
     case "openapi":
@@ -72,6 +79,25 @@ async function main(argv: string[]): Promise<number> {
       process.stderr.write(USAGE);
       return 1;
   }
+}
+
+async function record(url: string, flags: Flags): Promise<number> {
+  const outPath = flags.out ?? "capture.har";
+  await recordSession({
+    url,
+    outPath,
+    allOrigins: flags.allOrigins,
+    channel: flags.channel,
+    onReady: () =>
+      process.stderr.write(
+        `Recording. Use the system in the browser window, then close the window (or press Ctrl+C here) to save.\n`,
+      ),
+  });
+  process.stderr.write(
+    `Saved ${outPath}. It contains your session cookies: keep it private.\n\n` +
+      `Next:\n  api-anything analyze ${outPath}\n  api-anything openapi ${outPath} --out openapi.json\n  api-anything session ${outPath}\n`,
+  );
+  return 0;
 }
 
 async function analyze(file: string, flags: Flags): Promise<number> {
@@ -202,6 +228,8 @@ function printVerification(results: VerificationResult[]): void {
 interface Flags {
   json: boolean;
   allowWrites: boolean;
+  allOrigins: boolean;
+  channel?: string;
   out?: string;
   title?: string;
   version?: string;
@@ -209,7 +237,8 @@ interface Flags {
   delay?: string;
 }
 
-const VALUE_FLAGS: Record<string, "out" | "title" | "version" | "baseUrl" | "delay"> = {
+const VALUE_FLAGS: Record<string, "out" | "title" | "version" | "baseUrl" | "delay" | "channel"> = {
+  "--channel": "channel",
   "--out": "out",
   "--title": "title",
   "--version": "version",
@@ -218,11 +247,12 @@ const VALUE_FLAGS: Record<string, "out" | "title" | "version" | "baseUrl" | "del
 };
 
 function parseFlags(args: string[]): Flags {
-  const flags: Flags = { json: false, allowWrites: false };
+  const flags: Flags = { json: false, allowWrites: false, allOrigins: false };
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
     if (arg === "--json") flags.json = true;
     else if (arg === "--allow-writes") flags.allowWrites = true;
+    else if (arg === "--all-origins") flags.allOrigins = true;
     else if (arg in VALUE_FLAGS) {
       const value = args[++i];
       if (value === undefined) throw new Error(`${arg} needs a value`);
