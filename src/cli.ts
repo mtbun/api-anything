@@ -47,7 +47,9 @@ Commands:
             --headed. --save-state keeps the login (cookies, storage) in a
             private file and --state starts from it, so a person logs in once
             and scripts reuse the session.
-  analyze   List the API operations found in a HAR capture.
+  analyze   List the API operations found in a HAR capture. Analytics,
+            telemetry and bot-challenge traffic is left out unless
+            --keep-noise (also accepted by openapi, deps and verify).
   openapi   Write an OpenAPI 3.1 document describing the operations.
   verify    Replay one recorded call per operation against the live system and
             report each as verified, drifted, failed or skipped. Only reads are
@@ -133,7 +135,7 @@ async function record(url: string, flags: Flags): Promise<number> {
 }
 
 async function analyze(file: string, flags: Flags): Promise<number> {
-  const endpoints = await analyzeHar(file);
+  const endpoints = await analyzeHar(file, { keepNoise: flags.keepNoise });
   if (flags.json) {
     process.stdout.write(JSON.stringify(endpoints, null, 2) + "\n");
     return 0;
@@ -151,7 +153,7 @@ async function analyze(file: string, flags: Flags): Promise<number> {
 }
 
 async function openapi(file: string, flags: Flags): Promise<number> {
-  const calls = extractApiCalls(await loadHar(file));
+  const calls = extractApiCalls(await loadHar(file), { keepNoise: flags.keepNoise });
   const endpoints = groupEndpoints(calls);
   const document = toOpenApi(endpoints, { title: flags.title, version: flags.version, dependencies: findDependencies(calls) });
   const json = JSON.stringify(document, null, 2) + "\n";
@@ -165,7 +167,7 @@ async function openapi(file: string, flags: Flags): Promise<number> {
 }
 
 async function verify(file: string, flags: Flags): Promise<number> {
-  const results = await verifyCalls(extractApiCalls(await loadHar(file)), {
+  const results = await verifyCalls(extractApiCalls(await loadHar(file), { keepNoise: flags.keepNoise }), {
     baseUrl: flags.baseUrl,
     allowWrites: flags.allowWrites,
     delayMs: flags.delay === undefined ? 250 : Number(flags.delay),
@@ -176,7 +178,7 @@ async function verify(file: string, flags: Flags): Promise<number> {
 }
 
 async function deps(file: string, flags: Flags): Promise<number> {
-  const found = findDependencies(extractApiCalls(await loadHar(file)));
+  const found = findDependencies(extractApiCalls(await loadHar(file), { keepNoise: flags.keepNoise }));
   if (flags.json) {
     process.stdout.write(JSON.stringify({ dependencies: found, authSources: authSources(found) }, null, 2) + "\n");
     return 0;
@@ -219,10 +221,12 @@ async function session(file: string, flags: Flags): Promise<number> {
   const extracted = extractSession(extractApiCalls(await loadHar(file)));
   const path = flags.out ?? DEFAULT_SESSION_PATH;
   await saveSession(extracted, path);
-  for (const [origin, headers] of Object.entries(extracted.origins)) {
-    process.stderr.write(`${origin}: ${Object.keys(headers).join(", ")}\n`);
+  const origins = new Set([...Object.keys(extracted.origins), ...Object.keys(extracted.query ?? {})]);
+  for (const origin of origins) {
+    const names = [...Object.keys(extracted.origins[origin] ?? {}), ...Object.keys(extracted.query?.[origin] ?? {}).map((n) => `?${n}`)];
+    process.stderr.write(`${origin}: ${names.join(", ")}\n`);
   }
-  process.stderr.write(`Saved session for ${Object.keys(extracted.origins).length} origin(s) to ${path}. Keep this file private.\n`);
+  process.stderr.write(`Saved session for ${origins.size} origin(s) to ${path}. Keep this file private.\n`);
   return 0;
 }
 
@@ -234,7 +238,10 @@ async function ops(file: string, flags: Flags): Promise<number> {
   }
   for (const op of operations) {
     const params = op.parameters
-      .map((p) => (p.required ? `--${p.name} <${p.type ?? "string"}>` : `[--${p.name} <${p.type ?? "string"}>]`))
+      .map((p) => {
+        const flag = `--${p.name} <${p.type ?? "string"}>${p.default === undefined ? "" : `=${p.default}`}`;
+        return p.required ? flag : `[${flag}]`;
+      })
       .join(" ");
     const extras = [op.hasBody ? "--body <json>" : "", op.writes ? "(writes)" : ""].filter(Boolean).join(" ");
     process.stdout.write(`${op.operationId.padEnd(24)} ${op.method.padEnd(6)} ${op.path}\n`);
@@ -313,6 +320,7 @@ interface Flags {
   json: boolean;
   allowWrites: boolean;
   allOrigins: boolean;
+  keepNoise: boolean;
   headless?: boolean;
   headed: boolean;
   channel?: string;
@@ -339,12 +347,13 @@ const VALUE_FLAGS: Record<string, "out" | "title" | "version" | "baseUrl" | "del
 };
 
 function parseFlags(args: string[]): Flags {
-  const flags: Flags = { json: false, allowWrites: false, allOrigins: false, headed: false };
+  const flags: Flags = { json: false, allowWrites: false, allOrigins: false, keepNoise: false, headed: false };
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
     if (arg === "--json") flags.json = true;
     else if (arg === "--allow-writes") flags.allowWrites = true;
     else if (arg === "--all-origins") flags.allOrigins = true;
+    else if (arg === "--keep-noise") flags.keepNoise = true;
     else if (arg === "--headless") flags.headless = true;
     else if (arg === "--headed") flags.headed = true;
     else if (arg in VALUE_FLAGS) {
