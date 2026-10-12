@@ -15,6 +15,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - `deps <capture.har>`: traces credentials and IDs from the response that issues them to the requests that use them; exported as OpenAPI links and `x-api-anything.providesAuth`. (#7)
 - Session refresh: `call --refresh-state` and `refresh <url> --state` renew an expired session from a saved browser login and retry once, without storing a password. (#8)
 - `api-anything` command via `npm link`, with a Node entry point that runs the TypeScript sources through tsx. (#9)
+- A social preview image for the repository (`docs/social-preview.png`, rendered from `docs/social-preview.html`). (#21)
 - Project hygiene: issue templates that warn against attaching captures or cookies, a pull request checklist, a code of conduct, CODEOWNERS, Dependabot for npm and GitHub Actions, and CodeQL scanning. (#20)
 - Release workflow: pushing a `v*` tag checks the version and changelog, runs the tests, publishes to npm with provenance and creates the GitHub release from the changelog section; see `docs/RELEASING.md`. Package metadata for npm. (#19)
 - A demo HR app (`examples/demo-app/`) with a recording script, a demo GIF in the README rendered from `docs/demo.tape`, and a test that keeps the demo working. (#18)
