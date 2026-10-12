@@ -24,8 +24,9 @@ The web interface of such a system already talks to a server through structured 
 3. Describe   Calls to the same operation are merged: /orders/1042 and /orders/1043
               become GET /orders/{orderId}, with query parameters and JSON schemas
               inferred from every observed request and response.
-4. Use        (roadmap) Export OpenAPI, generate a typed client, or serve the
-              operations as MCP tools that Claude Code, Codex or Cursor can call.
+4. Export     Write an OpenAPI 3.1 document that any OpenAPI tool can read.
+5. Use        (roadmap) Generate a typed client, or serve the operations as
+              MCP tools that Claude Code, Codex or Cursor can call.
 ```
 
 The analysis is deterministic: parsing, grouping and schema inference involve no model calls, cost nothing to run and produce the same output every time.
@@ -53,6 +54,14 @@ GET    https://erp.example.test/api/v1/orders/{orderId}  calls=2 status=200,404
 ```
 
 Add `--json` to get the full description of every operation, including inferred request and response schemas.
+
+### How do I get an OpenAPI document?
+
+```bash
+npm run cli -- openapi capture.har --out openapi.json --title "Our ERP"
+```
+
+The result is an OpenAPI 3.1 document: one server for the system's main origin, a REST-style `operationId` for every operation (`listOrders`, `getOrder`, `createOrder`, `listCustomerInvoices`), typed path and query parameters, request bodies and responses per status code. Each operation also carries an `x-api-anything` extension with the number of observed calls and example paths, so you can see how much evidence a description rests on. Import the file into Postman, Swagger UI, an OpenAPI client generator or an agent framework.
 
 ### How do I record a HAR file?
 
@@ -92,7 +101,7 @@ api-anything is early. What exists today and what is planned:
 - [x] Query parameter detection (required vs optional)
 - [x] JSON schema inference for request and response bodies, merged across calls
 - [x] CLI: `analyze` with text and JSON output
-- [ ] OpenAPI 3.1 export
+- [x] OpenAPI 3.1 export with REST-style operation IDs and typed parameters
 - [ ] Session capture with Playwright, without manual HAR export
 - [ ] Session and request-dependency mapping (which call provides the token or ID the next call needs)
 - [ ] Replay verification: every operation is re-run and reported as working or failing, with the reason
