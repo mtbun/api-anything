@@ -69,6 +69,35 @@ npm run cli -- openapi capture.har --out openapi.json --title "Our ERP"
 
 The result is an OpenAPI 3.1 document: one server for the system's main origin, a REST-style `operationId` for every operation (`listOrders`, `getOrder`, `createOrder`, `listCustomerInvoices`), typed path and query parameters, request bodies and responses per status code. Each operation also carries an `x-api-anything` extension with the number of observed calls and example paths, so you can see how much evidence a description rests on. Import the file into Postman, Swagger UI, an OpenAPI client generator or an agent framework.
 
+### Which values flow between calls?
+
+```bash
+api-anything deps capture.har
+```
+
+```
+Credentials
+  POST /api/login  response.body:$.token
+    -> GET /api/v1/orders  request.header:authorization  (1x, e.g. tok_…(21 chars))
+  POST /api/login  response.cookie:sid
+    -> GET /api/v1/orders/{orderId}  request.cookie:sid  (2x, e.g. sess…(16 chars))
+Data
+  GET /api/v1/orders  response.body:$.items[*].id
+    -> GET /api/v1/orders/{orderId}  request.path:orderId  (2x, e.g. 1042)
+  GET /api/v1/orders  response.body:$.items[*].id
+    -> POST /api/v1/notes  request.body:$.orderId  (1x, e.g. 1042)
+
+To log in again, repeat: POST /api/login
+```
+
+`deps` follows every value that one call receives and a later call sends back, in capture order:
+
+- **Credentials**: a token from a login response that becomes the `Authorization` header, a cookie set by one response and sent with the next requests, CSRF tokens. This tells you which operation to repeat when the session expires. Credential values are always masked.
+- **Data**: an ID from a list that becomes the path of a detail request or a field in a form submission. This tells an agent how to chain operations: list first, then open one.
+- Short strings and small numbers (`page=1`, `status=open`) are ignored so that coincidences do not create links.
+
+The `openapi` command uses the same analysis: data flowing into a path or query parameter becomes a standard [OpenAPI link](https://spec.openapis.org/oas/v3.1.0#link-object) on the producing response (`listOrders` → `getOrder` with `orderId: $response.body#/items/0/id`), and the operation that issues credentials is marked with `x-api-anything.providesAuth`.
+
 ### How do I call an operation from the command line?
 
 ```bash
@@ -201,8 +230,8 @@ api-anything is early. What exists today and what is planned:
 - [x] CLI: `analyze` with text and JSON output
 - [x] OpenAPI 3.1 export with REST-style operation IDs and typed parameters
 - [x] Command-line calls: `session`, `ops` and `call` with parameter checking and a separate, private session file
+- [x] Dependency mapping: credentials and IDs traced from the response that issues them to the requests that use them; OpenAPI links and a marked login operation
 - [x] Replay verification: verified / drifted / failed / skipped per operation, with reasons and schema differences; writes only on request
-- [ ] Session and request-dependency mapping (which call provides the token or ID the next call needs)
 - [ ] MCP server as an optional thin layer over `call`
 - [ ] Typed client generation (TypeScript and Python)
 

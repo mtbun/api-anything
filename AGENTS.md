@@ -18,6 +18,7 @@ npm run cli -- record <url> [--out capture.har] [--all-origins] [--channel chrom
 npm run cli -- analyze test/fixtures/erp-session.har [--json]
 npm run cli -- openapi test/fixtures/erp-session.har [--out file] [--title t]
 npm run cli -- verify <capture.har> [--base-url url] [--allow-writes] [--delay ms] [--json]
+npm run cli -- deps <capture.har> [--json]
 npm run cli -- session <capture.har> [--out file]
 npm run cli -- ops <openapi.json> [--json]
 npm run cli -- call <openapi.json> <operationId> [--<param> value]... [--body json|@file] [--allow-writes]
@@ -31,6 +32,7 @@ src/har/          HAR types and parsing; decides which entries are API calls
 src/endpoints/    path templating and grouping of calls into operations
 src/schema/       deterministic JSON schema inference and merging
 src/openapi/      OpenAPI 3.1 export and operationId naming
+src/deps/         value flow between calls: credentials and data dependencies
 src/verify/       replay verification against the live system
 src/session/      session header extraction and the private session file
 src/call/         listing and calling operations from an OpenAPI document
@@ -44,6 +46,7 @@ test/             tests; test/fixtures/ holds synthetic captures only
 - **The core is deterministic.** Parsing, grouping and schema inference make no network or model calls. Keep it that way; model-based features go in their own module and must be opt-in.
 - **Nothing writes by default.** `verify` replays only GET/HEAD/OPTIONS and `call` refuses POST/PUT/PATCH/DELETE unless `allowWrites` is set. Keep that default; tests run against a local server, never a real system.
 - **Agents record with scripts, people log in.** `record --script` runs a file that default-exports `async (page, { url }) => {}`. Never type a user's password in a script; start from a state file saved by the user with `--save-state`.
+- **Credential values are always masked in output.** `deps` prints only a prefix and length for tokens and cookies.
 - **Credentials never enter the OpenAPI document.** Session headers live only in `.api-anything/session.json` (mode 600, gitignored).
 - **Never commit real captures.** HAR files contain session cookies and business data. Fixtures must be synthetic and use the `example.test` domain.
 - **Every behaviour change gets a test.** Add or update a case in `test/` and keep the fixture minimal.
