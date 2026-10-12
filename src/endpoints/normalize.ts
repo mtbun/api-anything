@@ -42,7 +42,7 @@ function paramName(previous: string | undefined): string {
   return `${base.charAt(0).toLowerCase()}${base.slice(1)}Id`;
 }
 
-function singular(word: string): string {
+export function singular(word: string): string {
   if (/ies$/i.test(word)) return word.slice(0, -3) + "y";
   if (/(ss|us)$/i.test(word)) return word;
   if (/s$/i.test(word)) return word.slice(0, -1);
