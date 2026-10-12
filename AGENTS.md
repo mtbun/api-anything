@@ -28,8 +28,8 @@ deps    <capture.har> [--json] [--keep-noise]
 session <capture.har> [--out file]
 ops     <openapi.json> [--json]
 call    <openapi.json> <operationId> [--<param> value]... [--body json|@file]
-        [--session file] [--base-url url] [--allow-writes] [--refresh-state file] [--refresh-url url]
-refresh <url> --state <file> [--out session.json]
+        [--session file] [--base-url url] [--allow-writes] [--refresh-state file] [--refresh-url url] [--no-interactive]
+refresh <url> [--state file] [--interactive] [--out session.json]
 client  <openapi.json> --lang ts|py [--out file]
 verify  <capture.har> [--base-url url] [--allow-writes] [--delay ms] [--json] [--keep-noise]
 ```
@@ -65,6 +65,7 @@ test/             tests; test/fixtures/ holds synthetic captures only
 - **Generated clients stay dependency-free.** TypeScript uses `fetch`; Python uses only the standard library and must run on Python 3.9. Tests type-check the TypeScript output and run both against a local server.
 - **Tests never touch a real app.** They run against local HTTP servers and synthetic fixtures; browser tests run headless.
 - **Agents record with scripts, people log in.** `record --script` runs a file that default-exports `async (page, { url }) => {}`. Never type a user's password in a script; start from a state file the user saved with `--save-state`.
+- **A person logs in; the tool never does.** When the saved browser login has ended, `refreshSession({ interactive: true })` shows the browser and waits for a person. As an agent without a terminal, ask the user to run `api-anything refresh <url> --interactive`; never ask for, store or type their password.
 - **Never replay or store a login request.** Sessions are renewed only from a browser state the user saved (`refreshSession`).
 - **Reads and writes are decided in one place.** Use `isReadOperation` from `src/endpoints/actions.ts`; do not check HTTP methods directly.
 - **Secrets never reach disk or documents.** `record` runs `redactHar` before the capture is kept; schema inference keeps no examples for `CREDENTIAL_FIELD` names or JWTs. Any new output path must respect `src/credentials.ts`.

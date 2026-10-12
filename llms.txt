@@ -14,6 +14,7 @@
 
 ## Key facts
 
+- When a session ends, `call` renews it headless from the saved browser login; when that has ended too, a browser window opens for the person at the terminal to log in and closes by itself. Agents without a terminal are told to ask the user to run `api-anything refresh <url> --interactive`.
 - The session file records how long each credential lasts (cookie Expires/Max-Age, JWT exp); short-lived sessions get a hint to log in with "remember me". Values are never printed.
 - Passwords are masked in recordings before they are written, never appear as examples in OpenAPI documents, and the login request is never replayed; only cookies, tokens, API keys and browser state are kept, in files with mode 600.
 - POST actions that only read (query, search, find, lookup, count) are treated as reads; other writes need --allow-writes.
