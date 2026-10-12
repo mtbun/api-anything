@@ -198,5 +198,7 @@ test("hostile values in a capture stay fast and harmless", async () => {
   const [endpoint] = groupEndpoints(extractApiCalls(await loadHar(FIXTURE)));
   const doc = toOpenApi([{ ...endpoint!, method: "__proto__" }]);
   assert.deepEqual(doc.paths, {}, "endpoints passed in by library callers are checked too");
+  const odd = toOpenApi([{ ...endpoint!, pathTemplate: "__proto__" }]);
+  assert.ok(Object.hasOwn(odd.paths, "__proto__"), "any path template is kept as a plain key");
   assert.equal(({} as Record<string, unknown>).get, undefined);
 });

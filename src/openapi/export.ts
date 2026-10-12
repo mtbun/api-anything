@@ -70,7 +70,8 @@ export function toOpenApi(endpoints: Endpoint[], options: OpenApiOptions = {}): 
   const primary = mostCommonOrigin(endpoints) ?? origins[0];
   const operationIds = uniqueOperationIds(endpoints);
 
-  const paths: OpenApiDocument["paths"] = {};
+  // A Map, not an object: path templates are keys and may be any string.
+  const pathItems = new Map<string, OpenApiDocument["paths"][string]>();
   const byEndpoint = new Map<string, OpenApiOperation>();
   endpoints.forEach((endpoint, i) => {
     // Endpoints may come from library callers, so only real HTTP methods
@@ -81,11 +82,13 @@ export function toOpenApi(endpoints: Endpoint[], options: OpenApiOptions = {}): 
     if (endpoint.origin !== primary || endpoint.alternateOrigins) {
       operation.servers = [endpoint.origin, ...(endpoint.alternateOrigins ?? [])].map((url) => ({ url }));
     }
-    const pathItem = (paths[endpoint.pathTemplate] ??= {});
+    let pathItem = pathItems.get(endpoint.pathTemplate);
+    if (!pathItem) pathItems.set(endpoint.pathTemplate, (pathItem = {}));
     pathItem[method] = operation;
     byEndpoint.set(endpoint.id, operation);
   });
   addDependencies(byEndpoint, options.dependencies ?? []);
+  const paths: OpenApiDocument["paths"] = Object.fromEntries(pathItems);
 
   const info: OpenApiDocument["info"] = {
     title: options.title ?? defaultTitle(primary),
