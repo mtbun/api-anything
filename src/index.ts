@@ -5,6 +5,7 @@ export { extractApiCalls, loadHar, parseBody, isApiEntry, type ApiCall } from ".
 export { groupEndpoints, endpointKey, type Endpoint, type EndpointResponse, type QueryParameter } from "./endpoints/group.ts";
 export { templatePath, isIdentifierSegment } from "./endpoints/normalize.ts";
 export { inferSchema, mergeSchemas, type JsonSchema } from "./schema/infer.ts";
+export { toOpenApi, operationIdFor, type OpenApiDocument, type OpenApiOptions } from "./openapi/export.ts";
 export type { Har, HarEntry } from "./har/types.ts";
 
 export async function analyzeHar(path: string): Promise<Endpoint[]> {
