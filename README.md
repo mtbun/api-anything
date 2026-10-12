@@ -185,7 +185,7 @@ To log in again, repeat: POST /api/login
 
 - **Credentials**: a token from a login response that becomes the `Authorization` header, a cookie set by one response and sent with the next requests, CSRF tokens. This tells you which operation issues the session. Credential values are always masked.
 - **Data**: an ID from a list that becomes the path of a detail request or a field in a form submission. This tells an agent how to chain operations: list first, then open one.
-- Short strings and small numbers (`page=1`, `status=open`) are ignored so that coincidences do not create links.
+- Short strings, small numbers (`page=1`, `status=open`) and dates are ignored so that coincidences do not create links: today's date in a forecast is not what a timesheet query was given.
 
 In the OpenAPI document, data flowing into a path or query parameter becomes a standard [OpenAPI link](https://spec.openapis.org/oas/v3.1.0#link-object) on the producing response (`listOrders` → `getOrder` with `orderId: $response.body#/items/0/id`), and the operation that issues credentials is marked with `x-api-anything.providesAuth`.
 
@@ -357,7 +357,15 @@ They are never stored. Logging in is done by a person in a real browser; `record
 
 ### How long does a recorded session last?
 
-As long as the app keeps it alive. Many apps end idle sessions after a few minutes to an hour; the saved browser state (`state.json`) ends with them unless the app offers a longer "remember me" login. When `call` or `verify` report 401 and `refresh` says the saved state is no longer logged in, log in again with `record --save-state`. Choosing "remember me" when logging in makes the saved state last longer.
+`record`, `session` and `refresh` tell you. They read how long each saved credential lasts, from the cookie's `Expires` or `Max-Age` or a JWT's `exp` claim, and print it without the value:
+
+```
+  sid (cookie): expires 2026-11-11T09:00:00.000Z (in 30 days)
+  .AspNetCore.Cookies (cookie): no expiry date; the app ends it after a period of inactivity, often minutes
+This session is short-lived. If the login page offers "Remember me" or "Keep me signed in", record again with it checked; the app then usually issues a session that lasts days.
+```
+
+A cookie without an expiry date lives until the app ends it on the server, often after minutes of inactivity. A "remember me" login usually issues one that lasts days or weeks, so record with it checked when the app offers it. `call` warns before sending when a known expiry has passed, and on a `401` or `403` it says how to log in again.
 
 ### Can I use it with apps I do not have access to?
 

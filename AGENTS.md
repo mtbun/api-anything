@@ -50,7 +50,7 @@ src/credentials.ts  the one place that decides which header and query names are 
 src/schema/       JSON schema inference, merging and validation
 src/deps/         value flow between calls: credentials and data dependencies
 src/openapi/      OpenAPI 3.1 export, operationId naming, links
-src/session/      session headers, the private session file, refresh from a saved browser login
+src/session/      session headers, the private session file, credential lifetimes, refresh from a saved browser login
 src/call/         listing and calling operations from an OpenAPI document; call arguments
 src/client/       client generation: a language-neutral model, TypeScript and Python renderers
 src/verify/       replay verification against the live app
