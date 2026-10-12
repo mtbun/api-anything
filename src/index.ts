@@ -11,6 +11,7 @@ export { verifyCalls, explainStatus, type Verdict, type VerificationResult, type
 export { extractSession, saveSession, loadSession, sessionHeaders, DEFAULT_SESSION_PATH, type Session } from "./session/session.ts";
 export { loadOpenApi, listOperations, findOperation, buildUrl, callOperation, type OperationSummary, type CallRequest, type CallResult } from "./call/call.ts";
 export { parseCallArgs, type CallArgs } from "./call/args.ts";
+export { recordSession, sameSiteFilter, type RecordOptions, type RecordResult } from "./record/record.ts";
 export type { Har, HarEntry } from "./har/types.ts";
 
 export async function analyzeHar(path: string): Promise<Endpoint[]> {
