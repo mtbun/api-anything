@@ -1,6 +1,7 @@
 import { chmod } from "node:fs/promises";
 import { SESSION_HEADER } from "../credentials.ts";
 import type { Session } from "./session.ts";
+import { jwtExpiry, type CredentialLifetime } from "./expiry.ts";
 
 // Gets a fresh session without storing a password: opens the system headless
 // from a browser state the user saved after logging in once (record
@@ -55,19 +56,34 @@ export async function refreshSession(options: RefreshOptions): Promise<Session> 
     }
 
     const origins: Session["origins"] = {};
+    const lifetimes: CredentialLifetime[] = [];
     const seen = new Set([start.origin, ...headers.keys()]);
     for (const origin of seen) {
       const cookies = await context.cookies(origin);
       const entry: Record<string, string> = { ...headers.get(origin) };
       if (cookies.length > 0) entry.cookie = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
       if (Object.keys(entry).length > 0) origins[origin] = entry;
+      for (const c of cookies) {
+        // Playwright reports -1 for a cookie that lives until the browser closes.
+        lifetimes.push(
+          c.expires > 0
+            ? { origin, name: c.name, kind: "cookie", expiresAt: new Date(c.expires * 1000).toISOString() }
+            : { origin, name: c.name, kind: "cookie", serverDecides: true },
+        );
+      }
+      for (const [name, value] of Object.entries(headers.get(origin) ?? {})) {
+        const exp = jwtExpiry(value.replace(/^bearer\s+/i, ""));
+        if (exp) lifetimes.push({ origin, name, kind: "token", expiresAt: exp });
+      }
     }
     if (Object.keys(origins).length === 0) throw new SessionExpiredError(page.url());
 
     // Cookies may have been rotated while loading; keep the state current.
     await context.storageState({ path: options.statePath });
     await chmod(options.statePath, 0o600);
-    return { createdAt: new Date().toISOString(), origins };
+    const session: Session = { createdAt: new Date().toISOString(), origins };
+    if (lifetimes.length > 0) session.lifetimes = lifetimes;
+    return session;
   } finally {
     await browser.close().catch(() => {});
   }

@@ -2,6 +2,7 @@ import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { ApiCall } from "../har/parse.ts";
 import { CREDENTIAL_PARAM, SESSION_HEADER } from "../credentials.ts";
+import { credentialLifetimes, type CredentialLifetime } from "./expiry.ts";
 
 export { SESSION_HEADER } from "../credentials.ts";
 
@@ -16,6 +17,8 @@ export interface Session {
   // Credential query parameters per origin, e.g. an API key the web app
   // sends in the URL.
   query?: Record<string, Record<string, string>>;
+  // When each credential stops working, as far as can be known.
+  lifetimes?: CredentialLifetime[];
 }
 
 export const DEFAULT_SESSION_PATH = ".api-anything/session.json";
@@ -40,6 +43,8 @@ export function extractSession(calls: ApiCall[]): Session {
   }
   const session: Session = { createdAt: new Date().toISOString(), origins };
   if (Object.keys(query).length > 0) session.query = query;
+  const lifetimes = credentialLifetimes(calls, session);
+  if (lifetimes.length > 0) session.lifetimes = lifetimes;
   return session;
 }
 

@@ -152,14 +152,19 @@ function* flatten(value: unknown, path: string): Generator<[string, string]> {
     for (const item of value) yield* flatten(item, `${path}[*]`);
   } else if (value !== null && typeof value === "object") {
     for (const [key, child] of Object.entries(value)) yield* flatten(child, `${path}.${key}`);
-  } else if (typeof value === "string" && value.length >= MIN_STRING_LENGTH) {
+  } else if (typeof value === "string" && value.length >= MIN_STRING_LENGTH && !DATE_VALUE.test(value)) {
     yield [path, value];
   } else if (typeof value === "number" && Number.isFinite(value) && Math.abs(value) >= MIN_NUMBER) {
     yield [path, String(value)];
   }
 }
 
+// Dates repeat across unrelated calls (today's date in a forecast and in a
+// timesheet query); they are not identifiers that one call hands to another.
+const DATE_VALUE = /^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}.*)?$/;
+
 function addString(out: Located[], value: string, location: string): void {
+  if (DATE_VALUE.test(value)) return;
   const isNumber = /^-?\d+(\.\d+)?$/.test(value);
   if (isNumber ? Math.abs(Number(value)) >= MIN_NUMBER : value.length >= MIN_STRING_LENGTH) out.push({ value, location });
 }
