@@ -115,3 +115,40 @@ test("call adds defaults and the session's API key, and runs a search without --
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 });
+
+test("numbered hosts of one service are one origin family", async () => {
+  const { originFamily } = await import("../src/endpoints/normalize.ts");
+  assert.equal(originFamily(new URL("https://t5-in-1.algolia.example.test/1/isalive")), "https://*.algolia.example.test");
+  assert.equal(originFamily(new URL("https://eu-3.api.example.test:8443/x")), "https://*.api.example.test:8443");
+  assert.equal(originFamily(new URL("https://api.example.test/x")), "https://api.example.test");
+  assert.equal(originFamily(new URL("https://node1.test/x")), "https://node1.test", "two labels: nothing to share");
+  assert.equal(originFamily(new URL("http://10.0.0.5/x")), "http://10.0.0.5");
+});
+
+test("an operation served by several numbered hosts is one operation with alternate servers", () => {
+  const call = (host: string) => ({
+    method: "GET",
+    url: new URL(`https://${host}/1/isalive?probe=1`),
+    requestHeaders: [],
+    requestBody: undefined,
+    requestBodyText: undefined,
+    requestMimeType: undefined,
+    status: 200,
+    responseHeaders: [],
+    responseBody: { ok: true },
+    responseMimeType: "application/json",
+    startedAt: undefined,
+  });
+  const calls = [call("t5-in-1.search.example.test"), call("t32-usw-1.search.example.test"), call("t32-usw-1.search.example.test")];
+  const endpoints = groupEndpoints(calls);
+  assert.equal(endpoints.length, 1);
+  assert.equal(endpoints[0]!.origin, "https://t32-usw-1.search.example.test", "the most-called host leads");
+  assert.deepEqual(endpoints[0]!.alternateOrigins, ["https://t5-in-1.search.example.test"]);
+  assert.equal(endpoints[0]!.callCount, 3);
+
+  const doc = toOpenApi(endpoints);
+  assert.deepEqual(doc.paths["/1/isalive"]!.get!.servers, [
+    { url: "https://t32-usw-1.search.example.test" },
+    { url: "https://t5-in-1.search.example.test" },
+  ]);
+});

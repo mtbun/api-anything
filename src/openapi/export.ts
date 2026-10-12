@@ -69,7 +69,9 @@ export function toOpenApi(endpoints: Endpoint[], options: OpenApiOptions = {}): 
   const byEndpoint = new Map<string, OpenApiOperation>();
   endpoints.forEach((endpoint, i) => {
     const operation = toOperation(endpoint, operationIds[i]!);
-    if (endpoint.origin !== primary) operation.servers = [{ url: endpoint.origin }];
+    if (endpoint.origin !== primary || endpoint.alternateOrigins) {
+      operation.servers = [endpoint.origin, ...(endpoint.alternateOrigins ?? [])].map((url) => ({ url }));
+    }
     const pathItem = (paths[endpoint.pathTemplate] ??= {});
     pathItem[endpoint.method.toLowerCase()] = operation;
     byEndpoint.set(endpoint.id, operation);
