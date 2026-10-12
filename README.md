@@ -135,6 +135,32 @@ A browser window opens at that address. Log in and do the tasks you want to auto
 - Only the system's own domain and its subdomains are recorded (`erp.acme.com` also records `api.acme.com`), so analytics and CDN traffic stay out. `--all-origins` records everything.
 - `--channel chrome` or `--channel msedge` uses the browser already installed on your machine. Otherwise run `npx playwright install chromium` once.
 
+### Can an AI agent record the session itself?
+
+Yes. An agent writes a short Playwright script and runs it with `--script`; the traffic is recorded while the script works, headless by default:
+
+```ts
+// steps.ts
+export default async (page, { url }) => {
+  await page.getByRole("link", { name: "Orders" }).click();
+  await page.getByLabel("Status").selectOption("open");
+  await page.getByRole("row").first().click();
+};
+```
+
+```bash
+api-anything record https://erp.yourcompany.com --script steps.ts --state .api-anything/state.json --out capture.har
+```
+
+Logging in stays with a person. They log in once in a visible browser and save the browser state; the agent's scripts then start from that state:
+
+```bash
+api-anything record https://erp.yourcompany.com/login --save-state .api-anything/state.json   # a person logs in, closes the window
+api-anything record https://erp.yourcompany.com --script steps.ts --state .api-anything/state.json
+```
+
+The state file holds cookies and local storage, is written with mode 600 and lives in the gitignored `.api-anything/` directory. Because the script can be re-run, re-recording after a system change or an expired session is one command. `--headed` shows the browser while a script runs.
+
 You can also export a HAR by hand. In Chrome or Edge, open DevTools (F12) → **Network** tab → tick **Preserve log** → use the system as you normally would → right-click the request list → **Save all as HAR with content**. Firefox has the same option in its Network panel.
 
 A HAR file contains everything the browser sent and received, including session cookies. Treat it like a password: keep it local and do not commit it. The repository's `.gitignore` excludes `*.har` outside the test fixtures.
@@ -166,6 +192,7 @@ Browser automation is still the right tool when a task depends on what is render
 api-anything is early. What exists today and what is planned:
 
 - [x] `record`: capture a session in a real browser without exporting a HAR by hand
+- [x] Agent recording: `record --script` runs an agent-written Playwright script; `--save-state` / `--state` let a person log in once and scripts reuse the session
 - [x] HAR parsing, with pages and static assets filtered out
 - [x] Path templating: numeric IDs, UUIDs, dates and opaque IDs become named parameters
 - [x] Grouping of calls into operations with call counts and status codes

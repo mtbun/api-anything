@@ -4,7 +4,7 @@
 
 Key facts:
 
-- Input: a session recorded with `api-anything record <url>` (opens a browser; the user works normally and closes it) or a HAR file exported from browser DevTools.
+- Input: a session recorded with `api-anything record <url>` (opens a browser; the user works normally and closes it) or a HAR file exported from browser DevTools. AI agents can record by writing a Playwright script and running `api-anything record <url> --script steps.ts --state state.json`, reusing a login the user saved once with --save-state.
 - Output: API operations with HTTP method, templated path (for example GET /orders/{orderId}), query parameters marked required or optional, and JSON schemas for request and response bodies inferred from every observed call.
 - The analysis is deterministic, runs locally, makes no network calls and needs no API key.
 - Written in TypeScript for Node.js 22+. MIT licensed.
