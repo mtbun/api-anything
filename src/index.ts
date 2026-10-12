@@ -12,6 +12,7 @@ export { extractSession, saveSession, loadSession, sessionHeaders, DEFAULT_SESSI
 export { loadOpenApi, listOperations, findOperation, buildUrl, callOperation, type OperationSummary, type CallRequest, type CallResult } from "./call/call.ts";
 export { parseCallArgs, type CallArgs } from "./call/args.ts";
 export { recordSession, sameSiteFilter, loadRecordScript, type RecordOptions, type RecordResult, type RecordScript } from "./record/record.ts";
+export { findDependencies, authSources, type Dependency, type DependencyEnd, type DependencyKind } from "./deps/deps.ts";
 export type { Har, HarEntry } from "./har/types.ts";
 
 export async function analyzeHar(path: string): Promise<Endpoint[]> {
