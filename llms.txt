@@ -9,7 +9,8 @@
 3. Map: `api-anything deps <capture.har>` shows which response issues the token or cookie later requests use, and which IDs flow from one operation into the next.
 4. Export: `api-anything openapi <capture.har>` writes an OpenAPI 3.1 document with REST-style operation IDs (listOrders, getOrder, createOrder; POST actions as queryIndex, login), typed parameters, defaults for fixed values and links between operations. API keys sent in the URL are never written into it.
 5. Call: `api-anything ops openapi.json` lists operations; `api-anything call openapi.json getOrder --orderId 1042` runs one and prints the JSON body to stdout. Session headers come from a private local file created by `api-anything session <capture.har>`. Writes need --allow-writes.
-6. Keep alive: `call --refresh-state state.json` renews an expired session from the saved browser login and retries once; `api-anything verify <capture.har>` replays operations and reports verified, drifted (with JSON-path differences), failed (with a reason) or skipped.
+6. Code: `api-anything client openapi.json --lang ts|py` generates a single-file, dependency-free client (TypeScript with fetch, Python with the standard library) with one typed method per operation and `fromSessionFile` / `from_session_file` to load the session.
+7. Keep alive: `call --refresh-state state.json` renews an expired session from the saved browser login and retries once; `api-anything verify <capture.har>` replays operations and reports verified, drifted (with JSON-path differences), failed (with a reason) or skipped.
 
 ## Key facts
 
@@ -18,7 +19,7 @@
 - Analysis is deterministic, runs locally and needs no API key or AI model.
 - Exit codes: 0 success, 1 usage error, 2 non-2xx response or failed verification.
 - Written in TypeScript for Node.js 22+, uses Playwright for recording. MIT licensed.
-- Status: early. Planned: typed clients, an optional MCP layer, npm release.
+- Status: early. Planned: an optional MCP layer, npm release.
 
 ## Docs
 

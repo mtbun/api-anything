@@ -35,6 +35,7 @@ Every one of these web apps already talks to its server through structured reque
 5. Export     An OpenAPI 3.1 document that any OpenAPI tool can read.
 6. Call       Any operation runs from the command line by its name:
               api-anything call openapi.json getOrder --orderId 1042
+              or from code, through a generated TypeScript or Python client.
 7. Keep alive An expired session is renewed from a saved browser login, and verify
               reports which operations still behave as recorded.
 ```
@@ -94,6 +95,7 @@ Without `npm link`, run the same commands as `npm run cli -- <command> ...` insi
 | `ops <openapi.json>` | Lists operations with their parameters |
 | `call <openapi.json> <operationId>` | Calls one operation and prints the response body |
 | `refresh <url> --state <file>` | Renews the session from a saved browser login |
+| `client <openapi.json> --lang ts\|py` | Generates a typed, dependency-free client with one method per operation |
 | `verify <capture.har>` | Replays operations against the live app and reports drift |
 
 Exit codes: `0` success, `1` usage or input error, `2` the app answered with a non-2xx status (`call`) or an operation failed or drifted (`verify`).
@@ -211,6 +213,36 @@ listOrders               GET    /api/v1/orders
 - **stdout carries only the response body** (pretty-printed JSON), so it can be piped. A non-2xx answer prints the status to stderr and exits with code 2.
 - `--base-url` sends the call to another environment; `-p name=value` passes a parameter whose name clashes with an option.
 
+## Can I use the operations from code?
+
+```bash
+api-anything client openapi.json --lang ts --out client.ts
+api-anything client openapi.json --lang py --out client.py
+```
+
+`client` writes a single file with one typed method per operation and no dependencies: the TypeScript client uses `fetch`, the Python client uses only the standard library (Python 3.9+).
+
+```ts
+import { ApiClient } from "./client.ts";
+
+const api = await ApiClient.fromSessionFile(".api-anything/session.json");
+const orders = await api.listOrders({ page: 1 });   // typed from the recorded responses
+const order = await api.getOrder({ orderId: orders.items[0].id });
+```
+
+```python
+from client import ApiClient
+
+api = ApiClient.from_session_file(".api-anything/session.json")
+orders = api.list_orders(page=1)
+order = api.get_order(orders["items"][0]["id"])
+```
+
+- **Types come from the recorded traffic**: parameter, body and response types (TypeScript interfaces, Python `TypedDict`s) follow the inferred schemas.
+- **Defaults and credentials behave as in `call`**: parameters with a default can be left out, and API keys the app sends in URLs are added from the session file.
+- **The session file is read for the app's own server**, also when `baseUrl` / `base_url` points to another environment.
+- A non-2xx response raises `ApiError` with the status and body.
+
 ## What happens when the session expires?
 
 ```bash
@@ -284,9 +316,10 @@ api-anything is early. What exists today:
 - [x] **Session refresh**: an expired session is renewed from a saved browser login and the call retried, without storing a password
 - [x] **Replay verification**: verified, drifted, failed or skipped per operation, with reasons and schema differences
 
+- [x] **Client generation**: single-file, dependency-free TypeScript and Python clients with typed methods
+
 Planned:
 
-- [ ] Typed client generation (TypeScript and Python)
 - [ ] An optional MCP server as a thin layer over `call`
 - [ ] Publishing to npm
 
