@@ -8,6 +8,8 @@ export interface ApiCall {
   url: URL;
   requestHeaders: HarNameValue[];
   requestBody: unknown;
+  // The body exactly as sent, for replaying the call.
+  requestBodyText: string | undefined;
   requestMimeType: string | undefined;
   status: number;
   responseBody: unknown;
@@ -63,6 +65,7 @@ function toApiCall(entry: HarEntry): ApiCall {
     url: new URL(request.url),
     requestHeaders: request.headers,
     requestBody: parseBody(request.postData?.text, request.postData?.mimeType),
+    requestBodyText: request.postData?.text,
     requestMimeType: request.postData?.mimeType,
     status: response.status,
     responseBody: parseBody(decode(response.content.text, response.content.encoding), response.content.mimeType),

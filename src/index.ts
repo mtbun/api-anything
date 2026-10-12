@@ -6,6 +6,8 @@ export { groupEndpoints, endpointKey, type Endpoint, type EndpointResponse, type
 export { templatePath, isIdentifierSegment } from "./endpoints/normalize.ts";
 export { inferSchema, mergeSchemas, type JsonSchema } from "./schema/infer.ts";
 export { toOpenApi, operationIdFor, type OpenApiDocument, type OpenApiOptions } from "./openapi/export.ts";
+export { validateAgainst, type SchemaIssue } from "./schema/validate.ts";
+export { verifyCalls, explainStatus, type Verdict, type VerificationResult, type VerifyOptions } from "./verify/replay.ts";
 export type { Har, HarEntry } from "./har/types.ts";
 
 export async function analyzeHar(path: string): Promise<Endpoint[]> {
