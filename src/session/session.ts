@@ -13,7 +13,7 @@ export interface Session {
 
 export const DEFAULT_SESSION_PATH = ".api-anything/session.json";
 
-const SESSION_HEADER = /^(cookie|authorization)$|csrf|xsrf|token|api[-_]?key|session|auth/i;
+export const SESSION_HEADER = /^(cookie|authorization)$|csrf|xsrf|token|api[-_]?key|session|auth/i;
 
 export function extractSession(calls: ApiCall[]): Session {
   const origins: Session["origins"] = {};

@@ -73,10 +73,9 @@ test("recordSession captures the app's API calls into a HAR that analyze underst
     outPath,
     headless: true,
     run: async (page) => {
-      await page.click("#load");
-      await page.waitForResponse((r) => r.url().includes("/api/items?"));
-      await page.click("#save");
-      await page.waitForResponse((r) => r.request().method() === "POST");
+      // Start waiting before clicking so a fast response is not missed.
+      await Promise.all([page.waitForResponse((r) => r.url().includes("/api/items?")), page.click("#load")]);
+      await Promise.all([page.waitForResponse((r) => r.request().method() === "POST"), page.click("#save")]);
     },
   });
 

@@ -3,6 +3,8 @@ export interface CallArgs {
   body?: string;
   baseUrl?: string;
   sessionPath?: string;
+  refreshState?: string;
+  refreshUrl?: string;
   allowWrites: boolean;
 }
 
@@ -33,6 +35,8 @@ export function parseCallArgs(args: string[]): CallArgs {
     if (name === "body") out.body = value;
     else if (name === "base-url") out.baseUrl = value;
     else if (name === "session") out.sessionPath = value;
+    else if (name === "refresh-state") out.refreshState = value;
+    else if (name === "refresh-url") out.refreshUrl = value;
     else out.params[name] = value;
   }
   return out;

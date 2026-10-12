@@ -2,6 +2,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import {
   analyzeHar,
+  refreshSession,
   authSources,
   findDependencies,
   groupEndpoints,
@@ -35,6 +36,8 @@ Usage:
   api-anything ops     <openapi.json> [--json]
   api-anything call    <openapi.json> <operationId> [--<param> <value>]... [--body <json|@file>]
                        [--session <file>] [--base-url <url>] [--allow-writes]
+                       [--refresh-state <file>] [--refresh-url <url>]
+  api-anything refresh <url> --state <file> [--out <session.json>]
 
 Commands:
   record    Open a browser at <url>, use the system as usual, then close the
@@ -60,7 +63,11 @@ Commands:
   call      Call one operation. Parameters are passed as --<name> <value>
             (or -p <name>=<value>). The response body goes to stdout; JSON is
             pretty-printed. Writes need --allow-writes. Exit code 2 on a
-            non-2xx response.
+            non-2xx response. With --refresh-state, an expired session is
+            renewed from the saved browser state and the call retried once.
+  refresh   Open <url> headless from a browser state saved with
+            'record --save-state' and write a fresh session file. No
+            password is stored or replayed.
 `;
 
 async function main(argv: string[]): Promise<number> {
@@ -91,6 +98,8 @@ async function main(argv: string[]): Promise<number> {
       return ops(file, parseFlags(rest));
     case "call":
       return call(file, rest);
+    case "refresh":
+      return refresh(file, parseFlags(rest));
     default:
       process.stderr.write(USAGE);
       return 1;
@@ -195,6 +204,18 @@ async function deps(file: string, flags: Flags): Promise<number> {
   return 0;
 }
 
+async function refresh(url: string, flags: Flags): Promise<number> {
+  if (!flags.state) throw new Error("refresh needs --state <file> saved with 'record --save-state'");
+  const fresh = await refreshSession({ url, statePath: flags.state, channel: flags.channel });
+  const path = flags.out ?? DEFAULT_SESSION_PATH;
+  await saveSession(fresh, path);
+  for (const [origin, headers] of Object.entries(fresh.origins)) {
+    process.stderr.write(`${origin}: ${Object.keys(headers).join(", ")}\n`);
+  }
+  process.stderr.write(`Saved a fresh session to ${path}.\n`);
+  return 0;
+}
+
 async function session(file: string, flags: Flags): Promise<number> {
   const extracted = extractSession(extractApiCalls(await loadHar(file)));
   const path = flags.out ?? DEFAULT_SESSION_PATH;
@@ -228,14 +249,24 @@ async function call(file: string, args: string[]): Promise<number> {
   if (!operationId || operationId.startsWith("-")) throw new Error("call needs an operationId; run 'api-anything ops <openapi.json>' to list them");
   const options = parseCallArgs(rest);
 
-  const result = await callOperation(await loadOpenApi(file), {
+  const doc = await loadOpenApi(file);
+  const sessionPath = options.sessionPath ?? DEFAULT_SESSION_PATH;
+  const refreshState = options.refreshState;
+  const result = await callOperation(doc, {
     operationId,
     params: options.params,
     body: options.body === undefined ? undefined : await readBody(options.body),
     baseUrl: options.baseUrl,
     allowWrites: options.allowWrites,
-    session: await loadSession(options.sessionPath),
+    session: await loadSession(sessionPath),
+    refresh: refreshState
+      ? () => refreshSession({ url: options.refreshUrl ?? `${new URL(doc.servers[0]!.url).origin}/`, statePath: refreshState })
+      : undefined,
   });
+  if (result.refreshedSession) {
+    await saveSession(result.refreshedSession, sessionPath);
+    process.stderr.write(`Session expired; refreshed from ${refreshState} and retried.\n`);
+  }
 
   process.stdout.write(formatBody(result.body, result.contentType));
   if (!result.ok) {
