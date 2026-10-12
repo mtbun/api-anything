@@ -1,7 +1,10 @@
+import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import {
   analyzeHar,
+  DEFAULT_STATE_PATH,
+  SessionExpiredError,
   describeLifetime,
   expiredCredentials,
   isShortLived,
@@ -45,8 +48,8 @@ Usage:
   api-anything ops     <openapi.json> [--json]
   api-anything call    <openapi.json> <operationId> [--<param> <value>]... [--body <json|@file>]
                        [--session <file>] [--base-url <url>] [--allow-writes]
-                       [--refresh-state <file>] [--refresh-url <url>]
-  api-anything refresh <url> --state <file> [--out <session.json>]
+                       [--refresh-state <file>] [--refresh-url <url>] [--no-interactive]
+  api-anything refresh <url> [--state <file>] [--interactive] [--out <session.json>]
   api-anything client  <openapi.json> --lang ts|py [--out <file>]
 
 Commands:
@@ -79,14 +82,18 @@ Commands:
   call      Call one operation. Parameters are passed as --<name> <value>
             (or -p <name>=<value>). The response body goes to stdout; JSON is
             pretty-printed. Writes need --allow-writes. Exit code 2 on a
-            non-2xx response. With --refresh-state, an expired session is
-            renewed from the saved browser state and the call retried once.
+            non-2xx response. An expired session is renewed from the saved
+            browser login (${DEFAULT_STATE_PATH} or --refresh-state) and the
+            call retried once; if that login has ended too and a person is at
+            the terminal, a browser opens for them to log in.
+            --no-interactive never opens one.
   client    Generate a single-file client with one typed method per
             operation: TypeScript (fetch) or Python (standard library).
             Both can load the session file. Prints to stdout unless --out.
-  refresh   Open <url> headless from a browser state saved with
-            'record --save-state' and write a fresh session file. No
-            password is stored or replayed.
+  refresh   Open <url> headless from the saved browser login and write a
+            fresh session file. With --interactive, a browser opens for a
+            person to log in when needed and closes by itself afterwards.
+            No password is stored or replayed.
 `;
 
 async function main(argv: string[]): Promise<number> {
@@ -250,9 +257,36 @@ async function deps(file: string, flags: Flags): Promise<number> {
   return 0;
 }
 
+// Headless from the saved browser login first; a visible login only when that
+// has ended and a person is there to log in.
+async function renewSession(url: string, statePath: string, interactive: boolean, channel?: string) {
+  try {
+    return await refreshSession({ url, statePath, channel });
+  } catch (error) {
+    if (!(error instanceof SessionExpiredError)) throw error;
+    if (!interactive) {
+      throw new Error(
+        `the saved login has ended and a person needs to log in. Run: api-anything refresh ${url} --interactive`,
+      );
+    }
+    return refreshSession({
+      url,
+      statePath,
+      channel,
+      interactive: true,
+      onLoginNeeded: () => {
+        process.stderr.write("The session has ended. Log in in the browser window; it closes by itself once you are in.\n");
+      },
+    });
+  }
+}
+
 async function refresh(url: string, flags: Flags): Promise<number> {
-  if (!flags.state) throw new Error("refresh needs --state <file> saved with 'record --save-state'");
-  const fresh = await refreshSession({ url, statePath: flags.state, channel: flags.channel });
+  const statePath = flags.state ?? DEFAULT_STATE_PATH;
+  if (!flags.interactive && !existsSync(statePath)) {
+    throw new Error(`no saved browser login at ${statePath}; run with --interactive to log in, or record with --save-state`);
+  }
+  const fresh = await renewSession(url, statePath, flags.interactive, flags.channel);
   const path = flags.out ?? DEFAULT_SESSION_PATH;
   await saveSession(fresh, path);
   for (const [origin, headers] of Object.entries(fresh.origins)) {
@@ -330,7 +364,8 @@ async function call(file: string, args: string[]): Promise<number> {
 
   const doc = await loadOpenApi(file);
   const sessionPath = options.sessionPath ?? DEFAULT_SESSION_PATH;
-  const refreshState = options.refreshState;
+  const refreshState = options.refreshState ?? (existsSync(DEFAULT_STATE_PATH) ? DEFAULT_STATE_PATH : undefined);
+  const interactive = Boolean(process.stdin.isTTY) && !options.noInteractive;
   const savedSession = await loadSession(sessionPath);
   const origin = doc.servers[0] ? new URL(doc.servers[0].url).origin : "";
   for (const l of expiredCredentials(savedSession, origin)) {
@@ -344,12 +379,12 @@ async function call(file: string, args: string[]): Promise<number> {
     allowWrites: options.allowWrites,
     session: savedSession,
     refresh: refreshState
-      ? () => refreshSession({ url: options.refreshUrl ?? `${new URL(doc.servers[0]!.url).origin}/`, statePath: refreshState })
+      ? () => renewSession(options.refreshUrl ?? `${new URL(doc.servers[0]!.url).origin}/`, refreshState, interactive)
       : undefined,
   });
   if (result.refreshedSession) {
     await saveSession(result.refreshedSession, sessionPath);
-    process.stderr.write(`Session expired; refreshed from ${refreshState} and retried.\n`);
+    process.stderr.write(`Session expired; renewed and retried.\n`);
   }
 
   process.stdout.write(formatBody(result.body, result.contentType));
@@ -406,6 +441,7 @@ interface Flags {
   allOrigins: boolean;
   keepNoise: boolean;
   noExamples: boolean;
+  interactive: boolean;
   headless?: boolean;
   headed: boolean;
   channel?: string;
@@ -434,7 +470,7 @@ const VALUE_FLAGS: Record<string, "out" | "title" | "version" | "baseUrl" | "del
 };
 
 function parseFlags(args: string[]): Flags {
-  const flags: Flags = { json: false, allowWrites: false, allOrigins: false, keepNoise: false, noExamples: false, headed: false };
+  const flags: Flags = { json: false, allowWrites: false, allOrigins: false, keepNoise: false, noExamples: false, interactive: false, headed: false };
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
     if (arg === "--json") flags.json = true;
@@ -442,6 +478,7 @@ function parseFlags(args: string[]): Flags {
     else if (arg === "--all-origins") flags.allOrigins = true;
     else if (arg === "--keep-noise") flags.keepNoise = true;
     else if (arg === "--no-examples") flags.noExamples = true;
+    else if (arg === "--interactive") flags.interactive = true;
     else if (arg === "--headless") flags.headless = true;
     else if (arg === "--headed") flags.headed = true;
     else if (arg in VALUE_FLAGS) {

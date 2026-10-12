@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { chromium } from "playwright";
 import {
   callOperation,
+  LoginTimeoutError,
   looksUnauthenticated,
   recordSession,
   refreshSession,
@@ -28,7 +29,7 @@ before(async () => {
     const loggedIn = req.headers.cookie?.includes("sid=good") ?? false;
     if (req.url === "/login") {
       res.writeHead(200, { "content-type": "text/html", "set-cookie": "sid=good; Path=/" });
-      return res.end("<p>logged in</p>");
+      return res.end('<p>logged in</p><a id="enter" href="/">Enter</a>');
     }
     if (req.url === "/") {
       if (!loggedIn) {
@@ -130,4 +131,34 @@ test("a valid session is not refreshed", async () => {
     },
   });
   assert.equal(result.status, 200);
+});
+
+test("an interactive refresh waits for a person to log in, then collects the fresh session", { skip }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), "api-anything-"));
+  const statePath = join(dir, "state.json");
+  await writeFile(statePath, JSON.stringify({ cookies: [], origins: [] }));
+
+  let asked = 0;
+  const session = await refreshSession({
+    url: `${origin}/`,
+    statePath,
+    interactive: true,
+    headless: true,
+    // Stands in for the person: the login page sets the cookie, then they continue to the app.
+    onLoginNeeded: async (page) => {
+      asked += 1;
+      await page.click("#enter");
+    },
+  });
+  assert.equal(asked, 1);
+  assert.deepEqual(session.origins[origin], { cookie: "sid=good", "x-csrf-token": "csrf-fresh-123" });
+  assert.equal((await stat(statePath)).mode & 0o777, 0o600, "the new login is saved for next time");
+});
+
+test("an interactive refresh gives up with a clear error when nobody logs in", { skip }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), "api-anything-"));
+  await assert.rejects(
+    refreshSession({ url: `${origin}/`, statePath: join(dir, "missing.json"), interactive: true, headless: true, loginTimeoutMs: 1500 }),
+    LoginTimeoutError,
+  );
 });
