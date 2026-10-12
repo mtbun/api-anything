@@ -28,6 +28,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 Found by recording real public web apps:
 
+- The same call to numbered hosts of one service (`t5-in-1.…`, `t32-usw-1.…`) is one operation instead of one per host; the OpenAPI operation lists every host as a server. (#11)
 - Analytics, tag-manager, telemetry and bot-challenge requests (Google Analytics, `/cdn-cgi/`, `telemetry.*`, and similar) are no longer listed as operations. (#10)
 - Requests that never got an answer (status 0 or below) are ignored. (#10)
 - API versions such as `/1/indexes` or `/api/2/orders` are no longer turned into `{id}` parameters. (#10)

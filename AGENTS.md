@@ -41,7 +41,7 @@ bin/api-anything.js  command entry point; registers tsx and loads src/cli.ts
 src/cli.ts        argument parsing and one function per command
 src/record/       browser recording with Playwright; scripts and saved browser state
 src/har/          HAR types and parsing; decides which entries are API calls, drops noise
-src/endpoints/    path templating, grouping of calls into operations, POST actions and read/write rules
+src/endpoints/    path templating, origin families, grouping of calls into operations, POST actions and read/write rules
 src/credentials.ts  the one place that decides which header and query names are credentials
 src/schema/       JSON schema inference, merging and validation
 src/deps/         value flow between calls: credentials and data dependencies
