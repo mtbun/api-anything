@@ -15,6 +15,9 @@ npm run typecheck    # tsc --noEmit, must be clean
 npm run cli -- analyze test/fixtures/erp-session.har [--json]
 npm run cli -- openapi test/fixtures/erp-session.har [--out file] [--title t]
 npm run cli -- verify <capture.har> [--base-url url] [--allow-writes] [--delay ms] [--json]
+npm run cli -- session <capture.har> [--out file]
+npm run cli -- ops <openapi.json> [--json]
+npm run cli -- call <openapi.json> <operationId> [--<param> value]... [--body json|@file] [--allow-writes]
 ```
 
 ## Layout
@@ -25,6 +28,8 @@ src/endpoints/    path templating and grouping of calls into operations
 src/schema/       deterministic JSON schema inference and merging
 src/openapi/      OpenAPI 3.1 export and operationId naming
 src/verify/       replay verification against the live system
+src/session/      session header extraction and the private session file
+src/call/         listing and calling operations from an OpenAPI document
 src/index.ts      public API
 src/cli.ts        command line entry point
 test/             tests; test/fixtures/ holds synthetic captures only
@@ -33,7 +38,8 @@ test/             tests; test/fixtures/ holds synthetic captures only
 ## Rules
 
 - **The core is deterministic.** Parsing, grouping and schema inference make no network or model calls. Keep it that way; model-based features go in their own module and must be opt-in.
-- **Replay never writes by default.** `verify` sends only GET/HEAD/OPTIONS unless `allowWrites` is set. Keep that default; tests run against a local server, never a real system.
+- **Nothing writes by default.** `verify` replays only GET/HEAD/OPTIONS and `call` refuses POST/PUT/PATCH/DELETE unless `allowWrites` is set. Keep that default; tests run against a local server, never a real system.
+- **Credentials never enter the OpenAPI document.** Session headers live only in `.api-anything/session.json` (mode 600, gitignored).
 - **Never commit real captures.** HAR files contain session cookies and business data. Fixtures must be synthetic and use the `example.test` domain.
 - **Every behaviour change gets a test.** Add or update a case in `test/` and keep the fixture minimal.
 - **Do not drop data silently.** If a body cannot be parsed, keep it as raw text; if an entry is skipped, it must be because a documented rule says so.
