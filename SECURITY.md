@@ -11,9 +11,9 @@ api-anything works with the access of a signed-in user, so some of its files are
 | File | Contains | Protection |
 |---|---|---|
 | `*.har` captures | Everything the browser sent and received, including cookies, tokens and account data | Keep local; `.gitignore` excludes them outside the test fixtures |
-| `.api-anything/session.json` | Cookie, authorization and CSRF headers used by `call` | Written with mode 600; the directory is gitignored |
+| `.api-anything/session.json` | Cookie, authorization and CSRF headers, and API keys the app sends in URLs, used by `call` | Written with mode 600; the directory is gitignored |
 | `.api-anything/state.json` (or any `--save-state` file) | Browser cookies and local storage of a logged-in session | Written with mode 600 |
-| `openapi.json` | Operations and schemas only, no credentials | Safe to share, but it may reveal an app's internal structure and example values |
+| `openapi.json` | Operations and schemas only; credential headers and query parameters are left out, including from example paths | Safe to share, but it may reveal an app's internal structure and example values |
 
 Passwords are never stored and the login request is never replayed. Credential values are masked in `deps` output.
 

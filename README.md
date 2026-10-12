@@ -25,7 +25,8 @@ Every one of these web apps already talks to its server through structured reque
 1. Record     api-anything record <url> opens a browser. Use the app as usual and close
               the window; the session is saved as a HAR file. An agent can record
               with its own script instead.
-2. Analyze    Pages and assets are filtered out; the application calls are kept.
+2. Analyze    Pages, assets, analytics and bot-challenge traffic are filtered out;
+              the application calls are kept.
 3. Describe   Calls to the same operation are merged: /orders/1042 and /orders/1043
               become GET /orders/{orderId}, with query parameters and JSON schemas
               inferred from every observed request and response.
@@ -86,7 +87,7 @@ Without `npm link`, run the same commands as `npm run cli -- <command> ...` insi
 | Command | What it does |
 |---|---|
 | `record <url>` | Opens a browser, records the session to a HAR file when the window is closed |
-| `analyze <capture.har>` | Lists the operations found in a capture |
+| `analyze <capture.har>` | Lists the operations found in a capture (`--keep-noise` keeps analytics and telemetry) |
 | `openapi <capture.har>` | Writes an OpenAPI 3.1 document |
 | `deps <capture.har>` | Shows which values flow between calls: credentials and IDs |
 | `session <capture.har>` | Saves the session headers (cookies, tokens) to a private file |
@@ -143,6 +144,13 @@ api-anything openapi capture.har --out openapi.json --title "Our HR tool"
 
 The result is an OpenAPI 3.1 document: one server for the app's main origin, a REST-style `operationId` for every operation (`listOrders`, `getOrder`, `createOrder`, `listCustomerInvoices`), typed path and query parameters, request bodies, responses per status code, and links between operations (see below). Each operation carries an `x-api-anything` extension with the number of observed calls and example paths, so you can see how much evidence a description rests on. Import the file into Postman, Swagger UI, an OpenAPI client generator or an agent framework.
 
+Recordings of real apps carry details the document handles for you:
+
+- **API versions stay literal.** `/1/indexes` or `/api/2/orders` keep their version; record IDs, UUIDs, dates and long signed tokens become named parameters.
+- **Fixed values become defaults.** A query parameter the app sends with the same value on every call (a client version, an app ID) gets that value as its default, so callers pass only real inputs.
+- **Credentials in the URL stay out.** An API key or token sent as a query parameter is not a parameter and never appears in the document; it is listed under `x-api-anything.credentialQuery` and `call` adds it from the session file.
+- **Actions are named for what they do.** `POST /1/indexes/products/query` becomes `queryIndexProduct`, `POST /api/login` becomes `login`, and POSTs that only read (`query`, `search`, `find`, `lookup`, `count`, ...) are treated as reads, so they run without `--allow-writes`.
+
 `analyze --json` prints the same information without the OpenAPI wrapping.
 
 ## Which values flow between calls?
@@ -196,8 +204,9 @@ listOrders               GET    /api/v1/orders
 ```
 
 - **Parameters are flags named after the operation's parameters.** Missing or misspelled ones are rejected with the list of valid names, so an agent can correct itself.
-- **The session is kept apart from the API description.** `session` writes the cookie, authorization and CSRF headers from the capture to `.api-anything/session.json` with file mode 600; `call` reads it from there (or from `--session <file>`). The OpenAPI document never contains credentials and can be shared.
-- **Writes need `--allow-writes`.** POST, PUT, PATCH and DELETE operations are refused without it, and nothing is sent.
+- **The session is kept apart from the API description.** `session` writes the cookie, authorization and CSRF headers, and API keys sent in the URL, from the capture to `.api-anything/session.json` with file mode 600; `call` reads it from there (or from `--session <file>`). The OpenAPI document never contains credentials and can be shared.
+- **Writes need `--allow-writes`.** POST, PUT, PATCH and DELETE operations are refused without it, and nothing is sent. POST actions that only read, such as searches, are not writes.
+- **Defaults fill themselves in.** Parameters with a default (shown as `--name <type>=value` in `ops`) can be left out.
 - **stdout carries only the response body** (pretty-printed JSON), so it can be piped. A non-2xx answer prints the status to stderr and exits with code 2.
 - `--base-url` sends the call to another environment; `-p name=value` passes a parameter whose name clashes with an option.
 
@@ -233,7 +242,7 @@ api-anything verify capture.har
 1 verified, 1 drifted, 1 failed, 1 skipped
 ```
 
-- **Only reads are replayed by default.** GET, HEAD and OPTIONS are sent; POST, PUT, PATCH and DELETE are skipped unless you pass `--allow-writes`, because replaying them would create or change records.
+- **Only reads are replayed by default.** GET, HEAD, OPTIONS and read-only POST actions such as searches are sent; other POST, PUT, PATCH and DELETE calls are skipped unless you pass `--allow-writes`, because replaying them would create or change records.
 - **Failures come with a reason**: an expired session, a redirect to a login page, a record that no longer exists, rate limiting or a server error.
 - **Drift lists the exact differences**: missing fields and changed types, by JSON path. Extra fields are not treated as drift.
 - `--base-url` replays against another environment, `--delay <ms>` spaces requests out (default 250 ms), `--json` prints machine-readable results.
@@ -267,7 +276,7 @@ Browser automation is still the right tool when a task depends on what is render
 api-anything is early. What exists today:
 
 - [x] **Recording**: `record` in a real browser; agent recording with `--script`; login kept in a saved browser state
-- [x] **Analysis**: HAR parsing without pages and assets; path templating for numeric IDs, UUIDs, dates and opaque IDs; operations with call counts, status codes, required and optional query parameters, and JSON schemas merged across calls
+- [x] **Analysis**: HAR parsing without pages, assets, analytics, bot challenges or unanswered requests; path templating that keeps API versions and templates numeric IDs, UUIDs, dates, opaque IDs and signed tokens; operations with call counts, status codes, required, optional and default query parameters, and JSON schemas merged across calls; tested against recordings of real public web apps
 - [x] **Dependency mapping**: credentials and IDs traced from the response that issues them to the requests that use them
 - [x] **OpenAPI 3.1 export**: REST-style operation IDs, typed parameters, links between operations, a marked login operation
 - [x] **Command-line calls**: `session`, `ops` and `call` with parameter checking and a separate, private session file

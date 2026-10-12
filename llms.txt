@@ -5,15 +5,16 @@
 ## How it works
 
 1. Record: `api-anything record <url>` opens a browser; the user works normally and closes it, and the session is saved as a HAR file. An AI agent can record with its own Playwright script: `api-anything record <url> --script steps.ts --state state.json`, reusing a login the user saved once with `--save-state`.
-2. Analyze: `api-anything analyze <capture.har>` lists operations with HTTP method, templated path (for example GET /orders/{orderId}), query parameters marked required or optional, and JSON schemas inferred from every observed call.
+2. Analyze: `api-anything analyze <capture.har>` lists operations with HTTP method, templated path (for example GET /orders/{orderId}; API versions such as /1/ stay literal), query parameters marked required, optional or defaulted, and JSON schemas inferred from every observed call. Analytics, telemetry, bot challenges and unanswered requests are filtered out.
 3. Map: `api-anything deps <capture.har>` shows which response issues the token or cookie later requests use, and which IDs flow from one operation into the next.
-4. Export: `api-anything openapi <capture.har>` writes an OpenAPI 3.1 document with REST-style operation IDs (listOrders, getOrder, createOrder), typed parameters and links between operations.
+4. Export: `api-anything openapi <capture.har>` writes an OpenAPI 3.1 document with REST-style operation IDs (listOrders, getOrder, createOrder; POST actions as queryIndex, login), typed parameters, defaults for fixed values and links between operations. API keys sent in the URL are never written into it.
 5. Call: `api-anything ops openapi.json` lists operations; `api-anything call openapi.json getOrder --orderId 1042` runs one and prints the JSON body to stdout. Session headers come from a private local file created by `api-anything session <capture.har>`. Writes need --allow-writes.
 6. Keep alive: `call --refresh-state state.json` renews an expired session from the saved browser login and retries once; `api-anything verify <capture.har>` replays operations and reports verified, drifted (with JSON-path differences), failed (with a reason) or skipped.
 
 ## Key facts
 
-- Passwords are never stored and the login request is never replayed; only cookies, tokens and browser state are kept, in files with mode 600.
+- Passwords are never stored and the login request is never replayed; only cookies, tokens, API keys and browser state are kept, in files with mode 600.
+- POST actions that only read (query, search, find, lookup, count) are treated as reads; other writes need --allow-writes.
 - Analysis is deterministic, runs locally and needs no API key or AI model.
 - Exit codes: 0 success, 1 usage error, 2 non-2xx response or failed verification.
 - Written in TypeScript for Node.js 22+, uses Playwright for recording. MIT licensed.

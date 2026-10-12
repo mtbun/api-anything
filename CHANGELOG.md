@@ -15,7 +15,21 @@ All notable changes to this project are documented here. The format follows [Kee
 - `deps <capture.har>`: traces credentials and IDs from the response that issues them to the requests that use them; exported as OpenAPI links and `x-api-anything.providesAuth`. (#7)
 - Session refresh: `call --refresh-state` and `refresh <url> --state` renew an expired session from a saved browser login and retry once, without storing a password. (#8)
 - `api-anything` command via `npm link`, with a Node entry point that runs the TypeScript sources through tsx. (#9)
+- `--keep-noise` for `analyze`, `openapi`, `deps` and `verify`. (#10)
+- Query parameters with the same value on every call become optional parameters with that default; `ops` shows them as `--name <type>=value` and `call` fills them in. (#10)
+- API keys and tokens sent as query parameters are treated as credentials: kept in the session file, added by `call`, left out of OpenAPI parameters and example paths, and listed under `x-api-anything.credentialQuery`. (#10)
 
 ### Changed
 
+- POST actions are named after the action (`queryIndexProduct`, `login`), and POSTs that only read (`query`, `search`, `find`, `lookup`, `count`, ...) are treated as reads by `call`, `ops` and `verify`. (#10)
 - Documentation positions api-anything for any web app, led by multi-tenant SaaS, instead of internal systems only. (#9)
+
+### Fixed
+
+Found by recording real public web apps:
+
+- Analytics, tag-manager, telemetry and bot-challenge requests (Google Analytics, `/cdn-cgi/`, `telemetry.*`, and similar) are no longer listed as operations. (#10)
+- Requests that never got an answer (status 0 or below) are ignored. (#10)
+- API versions such as `/1/indexes` or `/api/2/orders` are no longer turned into `{id}` parameters. (#10)
+- Long signed or challenge tokens with separators are templated, and parameters after unreadable segments are named `id` instead of a mangled token. (#10)
+- `indexes` is singularised to `index`, not `indexe`. (#10)
