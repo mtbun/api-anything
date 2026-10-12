@@ -1,5 +1,9 @@
+import { CREDENTIAL_FIELD, JWT } from "../credentials.ts";
+
 // Infers a JSON Schema (draft 2020-12 subset) from observed sample values and
-// merges schemas across samples. Deterministic: no model calls.
+// merges schemas across samples. Deterministic: no model calls. Values of
+// credential fields (password, token, secret, ...) and JWTs are never kept as
+// examples.
 
 export type JsonSchema = {
   type?: string | string[];
@@ -24,7 +28,7 @@ export function inferSchema(value: unknown): JsonSchema {
   }
   switch (typeof value) {
     case "string":
-      return withFormat({ type: "string", examples: [value] }, value);
+      return JWT.test(value) ? { type: "string" } : withFormat({ type: "string", examples: [value] }, value);
     case "number":
       return { type: Number.isInteger(value) ? "integer" : "number", examples: [value] };
     case "boolean":
@@ -33,13 +37,25 @@ export function inferSchema(value: unknown): JsonSchema {
       const entries = Object.entries(value as Record<string, unknown>);
       return {
         type: "object",
-        properties: Object.fromEntries(entries.map(([k, v]) => [k, inferSchema(v)])),
+        properties: Object.fromEntries(
+          entries.map(([k, v]) => [k, CREDENTIAL_FIELD.test(k) ? withoutExamples(inferSchema(v)) : inferSchema(v)]),
+        ),
         required: entries.map(([k]) => k).sort(),
       };
     }
     default:
       return {};
   }
+}
+
+export function withoutExamples(schema: JsonSchema): JsonSchema {
+  const { examples: _examples, default: _default, ...rest } = schema;
+  const out: JsonSchema = { ...rest };
+  if (schema.properties) {
+    out.properties = Object.fromEntries(Object.entries(schema.properties).map(([k, v]) => [k, withoutExamples(v)]));
+  }
+  if (schema.items) out.items = withoutExamples(schema.items);
+  return out;
 }
 
 export function mergeSchemas(a: JsonSchema, b: JsonSchema): JsonSchema {

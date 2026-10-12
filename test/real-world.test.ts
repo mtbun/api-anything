@@ -152,3 +152,26 @@ test("an operation served by several numbered hosts is one operation with altern
     { url: "https://t5-in-1.search.example.test" },
   ]);
 });
+
+test("RPC-style paths are named by their verb, and the verb decides read or write", () => {
+  // From a real HR portal that names operations get-..., calculate-..., not REST resources.
+  assert.equal(operationIdFor("GET", "/api/get-pto-history"), "getPtoHistory");
+  assert.equal(operationIdFor("GET", "/api/home-office/get-form-approval-dates"), "getHomeOfficeFormApprovalDates");
+  assert.equal(operationIdFor("GET", "/api/announcements/get-announcements"), "getAnnouncements");
+  assert.equal(operationIdFor("GET", "/api/work-place/get"), "getWorkPlace");
+  assert.equal(operationIdFor("GET", "/api/sick-leave/calculate-work-days"), "calculateSickLeaveWorkDays");
+  assert.equal(operationIdFor("POST", "/api/items/save-draft"), "saveItemDraft");
+  assert.equal(operationIdFor("GET", "/api/v1/orders"), "listOrders", "REST paths keep REST names");
+
+  assert.ok(!isReadOperation("GET", "/api/items/delete-item"), "a GET that deletes is a write");
+  assert.ok(!isReadOperation("GET", "/api/forms/submitForm"));
+  assert.ok(isReadOperation("POST", "/api/reports/get-summary"), "a POST that gets is a read");
+  assert.ok(isReadOperation("GET", "/api/work-place/my-today"));
+  assert.ok(!isReadOperation("POST", "/api/items"));
+});
+
+test("SignalR negotiate handshakes are noise", async () => {
+  const { isNoise } = await import("../src/index.ts");
+  assert.ok(isNoise(new URL("https://app.example.test/api/hubs/presence/negotiate?negotiateVersion=1")));
+  assert.ok(!isNoise(new URL("https://app.example.test/api/contracts/negotiate")), "a business 'negotiate' without the handshake parameter stays");
+});

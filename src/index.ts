@@ -19,6 +19,8 @@ export { findDependencies, authSources, type Dependency, type DependencyEnd, typ
 export { buildClientModel, type ClientModel, type ClientOperation } from "./client/model.ts";
 export { renderTypeScript } from "./client/typescript.ts";
 export { renderPython } from "./client/python.ts";
+export { redactHar, redactHarFile } from "./har/redact.ts";
+export { CREDENTIAL_FIELD } from "./credentials.ts";
 export type { Har, HarEntry } from "./har/types.ts";
 
 export async function analyzeHar(path: string, options: ExtractOptions = {}): Promise<Endpoint[]> {

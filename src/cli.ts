@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import {
   analyzeHar,
+  redactHarFile,
   buildClientModel,
   renderPython,
   renderTypeScript,
@@ -32,7 +33,8 @@ Usage:
   api-anything record  <url> [--out <capture.har>] [--all-origins] [--channel chrome|msedge]
                        [--script <file>] [--headless|--headed] [--state <file>] [--save-state <file>]
   api-anything analyze <capture.har> [--json]
-  api-anything openapi <capture.har> [--out <file>] [--title <title>] [--version <version>]
+  api-anything openapi <capture.har> [--out <file>] [--title <title>] [--version <version>] [--no-examples]
+  api-anything redact  <capture.har>
   api-anything verify  <capture.har> [--base-url <url>] [--allow-writes] [--delay <ms>] [--json]
   api-anything deps    <capture.har> [--json]
   api-anything session <capture.har> [--out <file>]
@@ -56,6 +58,10 @@ Commands:
             telemetry and bot-challenge traffic is left out unless
             --keep-noise (also accepted by openapi, deps and verify).
   openapi   Write an OpenAPI 3.1 document describing the operations.
+            Credential values are never included; --no-examples also leaves
+            out every example value, for sharing the document.
+  redact    Mask passwords and other secret fields in a HAR exported by hand
+            and make it private (mode 600). 'record' does this itself.
   verify    Replay one recorded call per operation against the live app and
             report each as verified, drifted, failed or skipped. Only reads are
             replayed unless --allow-writes is set. Exit code 2 if anything
@@ -100,6 +106,8 @@ async function main(argv: string[]): Promise<number> {
       return record(file, parseFlags(rest));
     case "analyze":
       return analyze(file, parseFlags(rest));
+    case "redact":
+      return redact(file);
     case "openapi":
       return openapi(file, parseFlags(rest));
     case "verify":
@@ -125,7 +133,7 @@ async function main(argv: string[]): Promise<number> {
 async function record(url: string, flags: Flags): Promise<number> {
   const outPath = flags.out ?? "capture.har";
   const run = flags.script ? await loadRecordScript(flags.script) : undefined;
-  await recordSession({
+  const result = await recordSession({
     url,
     outPath,
     allOrigins: flags.allOrigins,
@@ -138,14 +146,21 @@ async function record(url: string, flags: Flags): Promise<number> {
       process.stderr.write(
         run
           ? `Recording while ${flags.script} runs.\n`
-          : `Recording. Use the system in the browser window, then close the window (or press Ctrl+C here) to save.\n`,
+          : `Recording. Use the app in the browser window, then close the window (or press Ctrl+C here) to save.\n`,
       ),
   });
   if (flags.saveState) process.stderr.write(`Saved browser state to ${flags.saveState} (private; reuse it with --state).\n`);
   process.stderr.write(
-    `Saved ${outPath}. It contains your session cookies: keep it private.\n\n` +
+    `Saved ${outPath} (mode 600${result.redacted > 0 ? `, ${result.redacted} password or secret field(s) masked` : ""}). ` +
+      `It contains your session cookies: keep it private.\n\n` +
       `Next:\n  api-anything analyze ${outPath}\n  api-anything openapi ${outPath} --out openapi.json\n  api-anything session ${outPath}\n`,
   );
+  return 0;
+}
+
+async function redact(file: string): Promise<number> {
+  const count = await redactHarFile(file);
+  process.stderr.write(`Masked ${count} secret field(s) in ${file}; the file is now private (mode 600).\n`);
   return 0;
 }
 
@@ -175,7 +190,12 @@ async function openapi(file: string, flags: Flags): Promise<number> {
       `no API calls found in ${file}. Record while the app loads data, or try --keep-noise; if the API is on another domain, record with --all-origins`,
     );
   }
-  const document = toOpenApi(endpoints, { title: flags.title, version: flags.version, dependencies: findDependencies(calls) });
+  const document = toOpenApi(endpoints, {
+    title: flags.title,
+    version: flags.version,
+    dependencies: findDependencies(calls),
+    examples: !flags.noExamples,
+  });
   const json = JSON.stringify(document, null, 2) + "\n";
   if (flags.out) {
     await writeFile(flags.out, json);
@@ -355,6 +375,7 @@ interface Flags {
   allowWrites: boolean;
   allOrigins: boolean;
   keepNoise: boolean;
+  noExamples: boolean;
   headless?: boolean;
   headed: boolean;
   channel?: string;
@@ -383,13 +404,14 @@ const VALUE_FLAGS: Record<string, "out" | "title" | "version" | "baseUrl" | "del
 };
 
 function parseFlags(args: string[]): Flags {
-  const flags: Flags = { json: false, allowWrites: false, allOrigins: false, keepNoise: false, headed: false };
+  const flags: Flags = { json: false, allowWrites: false, allOrigins: false, keepNoise: false, noExamples: false, headed: false };
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
     if (arg === "--json") flags.json = true;
     else if (arg === "--allow-writes") flags.allowWrites = true;
     else if (arg === "--all-origins") flags.allOrigins = true;
     else if (arg === "--keep-noise") flags.keepNoise = true;
+    else if (arg === "--no-examples") flags.noExamples = true;
     else if (arg === "--headless") flags.headless = true;
     else if (arg === "--headed") flags.headed = true;
     else if (arg in VALUE_FLAGS) {
