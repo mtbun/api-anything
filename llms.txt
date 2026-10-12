@@ -1,0 +1,17 @@
+# api-anything
+
+> api-anything turns web-based business systems that have no public API (ERPs, internal admin panels, legacy portals) into typed API operations and, on the roadmap, MCP tools for AI agents, by analyzing the HAR traffic of a normal browser session.
+
+Key facts:
+
+- Input: a HAR file recorded while a user works in the system's web interface.
+- Output: API operations with HTTP method, templated path (for example GET /orders/{orderId}), query parameters marked required or optional, and JSON schemas for request and response bodies inferred from every observed call.
+- The analysis is deterministic, runs locally, makes no network calls and needs no API key.
+- Written in TypeScript for Node.js 22+. MIT licensed.
+- Status: early. Implemented: HAR analysis and the `analyze` CLI. Planned: OpenAPI export, Playwright capture, replay verification, MCP server, typed clients.
+
+## Docs
+
+- [README](https://github.com/mtbun/api-anything/blob/main/README.md): what it is, quick start, use cases, FAQ
+- [AGENTS.md](https://github.com/mtbun/api-anything/blob/main/AGENTS.md): instructions for AI coding agents
+- [CONTRIBUTING.md](https://github.com/mtbun/api-anything/blob/main/CONTRIBUTING.md): development workflow
