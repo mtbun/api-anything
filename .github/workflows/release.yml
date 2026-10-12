@@ -1,0 +1,39 @@
+name: Release
+
+# Publishes to npm and creates a GitHub release when a version tag is pushed.
+# See docs/RELEASING.md. Needs the NPM_TOKEN repository secret.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      - name: Tag matches package.json
+        run: |
+          test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME" \
+            || { echo "tag $GITHUB_REF_NAME does not match package.json version"; exit 1; }
+      - name: Release notes exist
+        run: node scripts/release-notes.mjs "${GITHUB_REF_NAME#v}" > release-notes.md
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file release-notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
