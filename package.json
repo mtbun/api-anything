@@ -2,19 +2,6 @@
   "name": "api-anything",
   "version": "0.1.0",
   "description": "Turn any web app into an API: typed operations, OpenAPI and command-line calls for AI agents, built from the traffic of a normal browser session.",
-  "license": "MIT",
-  "type": "module",
-  "engines": {
-    "node": ">=22"
-  },
-  "bin": {
-    "api-anything": "./bin/api-anything.js"
-  },
-  "scripts": {
-    "cli": "tsx src/cli.ts",
-    "test": "tsx --test test/*.test.ts",
-    "typecheck": "tsc --noEmit"
-  },
   "keywords": [
     "api",
     "cli",
@@ -31,22 +18,44 @@
     "automation",
     "claude-code"
   ],
+  "homepage": "https://github.com/mtbun/api-anything#readme",
+  "bugs": {
+    "url": "https://github.com/mtbun/api-anything/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mtbun/api-anything.git"
   },
-  "devDependencies": {
-    "@types/node": "^22.10.2",
-    "typescript": "^5.7.2"
+  "license": "MIT",
+  "author": "Bünyamin Mete",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
   },
-  "dependencies": {
-    "playwright": "^1.64.0",
-    "tsx": "^4.19.2"
+  "bin": {
+    "api-anything": "./bin/api-anything.js"
   },
   "files": [
     "bin",
     "src",
     "README.md",
     "LICENSE"
-  ]
+  ],
+  "scripts": {
+    "cli": "tsx src/cli.ts",
+    "test": "tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "dependencies": {
+    "playwright": "^1.64.0",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
 }
