@@ -1,7 +1,7 @@
 {
   "name": "api-anything",
   "version": "0.1.0",
-  "description": "Turn web-based business systems without an API into typed APIs and command-line operations for AI agents, by analyzing the traffic of a normal browser session.",
+  "description": "Turn any web app into an API: typed operations, OpenAPI and command-line calls for AI agents, built from the traffic of a normal browser session.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -24,6 +24,9 @@
     "har",
     "openapi",
     "erp",
+    "saas",
+    "web-app",
+    "reverse-engineering",
     "integration",
     "automation",
     "claude-code"

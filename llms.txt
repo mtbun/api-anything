@@ -1,6 +1,6 @@
 # api-anything
 
-> api-anything turns web-based business systems that have no public API (ERPs, internal admin panels, legacy portals) into typed API operations OpenAPI 3.1 documents and command-line operations that AI agents and scripts can call, by analyzing the HAR traffic of a normal browser session.
+> api-anything turns any web app into an API: typed operations, OpenAPI 3.1 documents and command-line calls that AI agents and scripts can use, built by analyzing the traffic of a normal browser session. It targets the web apps people sign in to, such as SaaS tools for HR, payroll, accounting, CRM, e-commerce and logistics, ERPs, supplier portals and admin panels, especially where no API is available or the API covers only part of the app.
 
 Key facts:
 

@@ -1,8 +1,10 @@
 # api-anything
 
-**api-anything turns web-based business systems that have no public API into typed APIs that AI agents and scripts can call from the command line.** You use the system once in a normal browser session; api-anything reads the recorded traffic, finds the operations the web app calls behind the scenes, and describes them as API operations that an agent or a script can call directly.
+**api-anything turns any web app into an API that AI agents and scripts can call from the command line.** You use the site once in a normal browser session; api-anything reads the recorded traffic, finds the operations the web app calls behind the scenes, and describes them as API operations that an agent or a script can call directly.
 
-> API anything with agents. ERP screens, internal admin panels and legacy portals become operations you call with one command.
+It works with the web apps people sign in to every day: SaaS tools for HR, payroll, accounting, CRM, e-commerce, logistics and bookings, ERPs, supplier and customer portals, and internal admin panels.
+
+> API anything with agents. Any web app you log in to becomes operations you call with one command.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Node 22+](https://img.shields.io/badge/node-%3E%3D22-brightgreen)
@@ -12,9 +14,9 @@
 
 ## What problem does api-anything solve?
 
-Most companies run on web systems that their staff already use every day: ERPs, order and inventory screens, HR and finance portals, supplier portals, internal admin panels. Many of these systems offer no API, or an API that does not cover what the screens can do. The result is manual work: copying orders into spreadsheets, re-typing data between systems, clicking through the same forms every morning.
+Most day-to-day work happens inside web apps: a multi-tenant SaaS where hundreds of companies sign in at the same address to run HR or payroll, an accounting or CRM tool, an e-commerce or logistics panel, an ERP, a supplier portal. Many of these offer no API, keep it for an enterprise plan, or expose only part of what the screens can do. The result is manual work: exporting reports by hand, copying records into spreadsheets, re-typing data between tools, clicking through the same forms every morning.
 
-The web interface of such a system already talks to a server through structured requests. api-anything makes those requests visible and reusable, so the work your team does by hand in the browser can be done by an AI agent or a script, with the same access the user already has.
+Every one of these web apps already talks to its server through structured requests. api-anything makes those requests visible and reusable, so the work you do by hand in the browser can be done by an AI agent or a script, with the same access your account already has.
 
 ## How does it work?
 
@@ -208,11 +210,13 @@ A HAR file contains everything the browser sent and received, including session 
 
 | Situation | What api-anything gives you |
 |---|---|
-| An ERP with no API for the screens your team uses | The operations behind those screens, ready to be called by an agent or a script |
-| Daily manual exports from an internal panel | A repeatable call that returns the same data as JSON |
-| Moving data between two systems that cannot talk to each other | Described operations on both sides to build the integration on |
-| An internal service whose API was never documented | A generated description of the endpoints it actually serves |
-| Giving an AI agent access to a company system | Operations an agent can call directly instead of clicking through the UI |
+| A SaaS tool (HR, payroll, accounting, CRM) with no API on your plan | The operations behind its screens, ready to be called by an agent or a script |
+| A SaaS whose public API covers only part of what the web app does | The missing operations, taken from the web app itself |
+| A report that only exists as an "Export" button | A repeatable call that returns the same data as JSON |
+| An ERP, supplier portal or admin panel with no API at all | A full description of the operations its screens use |
+| Moving data between two tools that cannot talk to each other | Described operations on both sides to build the integration on |
+| A web app whose own API was never documented | A generated OpenAPI description of the endpoints it actually serves |
+| Giving an AI agent access to the tools you work in | Operations an agent can call directly instead of clicking through a UI |
 
 ## How is this different from browser automation or RPA?
 
@@ -224,7 +228,7 @@ A HAR file contains everything the browser sent and received, including session 
 | Output | A recorded script | An OpenAPI 3.1 document and named operations you can call |
 | Fit for AI agents | The agent has to drive a browser | The agent runs `api-anything call <operation>` in its terminal |
 
-Browser automation is still the right tool when a task depends on what is rendered on screen. api-anything is for the large share of business tasks that are really "read these records" or "submit this form".
+Browser automation is still the right tool when a task depends on what is rendered on screen. api-anything is for the large share of tasks that are really "read these records" or "submit this form".
 
 ## Status and roadmap
 
@@ -250,11 +254,11 @@ api-anything is early. What exists today and what is planned:
 
 ### Is this an alternative to an official API?
 
-No. If a system has an official API that covers your needs, use it. api-anything is for the systems, or the parts of systems, where no API exists and the only interface is the web screen.
+No. If a web app has an official API that covers your needs on your plan, use it. api-anything is for the apps, or the parts of apps, where no API is available to you and the only interface is the web screen.
 
-### Which systems does it work with?
+### Which web apps does it work with?
 
-Any system whose web interface loads data through HTTP requests, which covers most modern web applications, single-page apps and many older systems that use XHR. Systems that render everything on the server and only exchange full HTML pages expose fewer reusable operations.
+Any web app whose interface loads data through HTTP requests: multi-tenant SaaS products where many companies sign in at the same address, single-page apps, ERPs, portals and admin panels, including many older systems that use XHR. Systems that render everything on the server and only exchange full HTML pages expose fewer reusable operations.
 
 ### Does it send my data anywhere?
 
