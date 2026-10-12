@@ -2,6 +2,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import {
   analyzeHar,
+  describeLifetime,
+  expiredCredentials,
+  isShortLived,
+  type Session,
   redactHarFile,
   buildClientModel,
   renderPython,
@@ -150,6 +154,7 @@ async function record(url: string, flags: Flags): Promise<number> {
       ),
   });
   if (flags.saveState) process.stderr.write(`Saved browser state to ${flags.saveState} (private; reuse it with --state).\n`);
+  reportLifetimes(extractSession(extractApiCalls(await loadHar(outPath))));
   process.stderr.write(
     `Saved ${outPath} (mode 600${result.redacted > 0 ? `, ${result.redacted} password or secret field(s) masked` : ""}). ` +
       `It contains your session cookies: keep it private.\n\n` +
@@ -254,6 +259,7 @@ async function refresh(url: string, flags: Flags): Promise<number> {
     process.stderr.write(`${origin}: ${Object.keys(headers).join(", ")}\n`);
   }
   process.stderr.write(`Saved a fresh session to ${path}.\n`);
+  reportLifetimes(fresh);
   return 0;
 }
 
@@ -271,6 +277,18 @@ async function client(file: string, flags: Flags): Promise<number> {
   return 0;
 }
 
+// Tells the user how long the saved session lasts and what to do if it is short.
+function reportLifetimes(session: Session): void {
+  const lifetimes = session.lifetimes ?? [];
+  for (const l of lifetimes) process.stderr.write(`  ${describeLifetime(l)}\n`);
+  if (isShortLived(lifetimes)) {
+    process.stderr.write(
+      `This session is short-lived. If the login page offers "Remember me" or "Keep me signed in", ` +
+        `record again with it checked; the app then usually issues a session that lasts days.\n`,
+    );
+  }
+}
+
 async function session(file: string, flags: Flags): Promise<number> {
   const extracted = extractSession(extractApiCalls(await loadHar(file)));
   const path = flags.out ?? DEFAULT_SESSION_PATH;
@@ -281,6 +299,7 @@ async function session(file: string, flags: Flags): Promise<number> {
     process.stderr.write(`${origin}: ${names.join(", ")}\n`);
   }
   process.stderr.write(`Saved session for ${origins.size} origin(s) to ${path}. Keep this file private.\n`);
+  reportLifetimes(extracted);
   return 0;
 }
 
@@ -312,13 +331,18 @@ async function call(file: string, args: string[]): Promise<number> {
   const doc = await loadOpenApi(file);
   const sessionPath = options.sessionPath ?? DEFAULT_SESSION_PATH;
   const refreshState = options.refreshState;
+  const savedSession = await loadSession(sessionPath);
+  const origin = doc.servers[0] ? new URL(doc.servers[0].url).origin : "";
+  for (const l of expiredCredentials(savedSession, origin)) {
+    process.stderr.write(`warning: ${describeLifetime(l)}\n`);
+  }
   const result = await callOperation(doc, {
     operationId,
     params: options.params,
     body: options.body === undefined ? undefined : await readBody(options.body),
     baseUrl: options.baseUrl,
     allowWrites: options.allowWrites,
-    session: await loadSession(sessionPath),
+    session: savedSession,
     refresh: refreshState
       ? () => refreshSession({ url: options.refreshUrl ?? `${new URL(doc.servers[0]!.url).origin}/`, statePath: refreshState })
       : undefined,
@@ -331,6 +355,12 @@ async function call(file: string, args: string[]): Promise<number> {
   process.stdout.write(formatBody(result.body, result.contentType));
   if (!result.ok) {
     process.stderr.write(`HTTP ${result.status} from ${result.url}\n`);
+    if ((result.status === 401 || result.status === 403) && !refreshState) {
+      process.stderr.write(
+        `The session has probably ended. Log in again with 'api-anything record <url> --save-state .api-anything/state.json' ` +
+          `and run 'api-anything session <capture.har>', or pass --refresh-state if the saved browser login is still valid.\n`,
+      );
+    }
     return 2;
   }
   return 0;
