@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import type { OpenApiDocument, OpenApiOperation, OpenApiParameter } from "../openapi/export.ts";
 import { sessionHeaders, type Session } from "../session/session.ts";
+import { looksUnauthenticated } from "../session/refresh.ts";
 
 // Calls one operation of an OpenAPI document by its operationId, so that a
 // discovered system can be used from the command line, a script or an agent.
@@ -22,6 +23,9 @@ export interface CallRequest {
   baseUrl?: string;
   allowWrites?: boolean;
   session?: Session;
+  // Called once when the response says the session is gone; the call is
+  // retried with the session it returns.
+  refresh?: () => Promise<Session>;
   timeoutMs?: number;
   fetch?: typeof fetch;
 }
@@ -32,6 +36,9 @@ export interface CallResult {
   contentType: string | undefined;
   body: string;
   url: string;
+  location?: string;
+  // Set when the session was refreshed and the call retried.
+  refreshedSession?: Session;
 }
 
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -104,27 +111,37 @@ export async function callOperation(doc: OpenApiDocument, request: CallRequest):
   }
 
   const url = buildUrl(doc, request.operationId, request.params, request.baseUrl);
-  const headers = new Headers(sessionHeaders(request.session, serverFor(doc, op)));
-  if (request.body !== undefined) {
-    const mediaType = Object.keys(op.requestBody?.content ?? {})[0] ?? "application/json";
-    headers.set("content-type", mediaType);
-  }
-  headers.set("accept", "application/json, */*");
+  const origin = serverFor(doc, op);
+  const mediaType = Object.keys(op.requestBody?.content ?? {})[0] ?? "application/json";
 
-  const response = await (request.fetch ?? fetch)(url, {
-    method,
-    headers,
-    body: request.body,
-    redirect: "manual",
-    signal: AbortSignal.timeout(request.timeoutMs ?? 30_000),
-  });
-  return {
-    status: response.status,
-    ok: response.ok,
-    contentType: response.headers.get("content-type") ?? undefined,
-    body: await response.text(),
-    url,
+  const send = async (session: Session | undefined): Promise<CallResult> => {
+    const headers = new Headers(sessionHeaders(session, origin));
+    if (request.body !== undefined) headers.set("content-type", mediaType);
+    headers.set("accept", "application/json, */*");
+    const response = await (request.fetch ?? fetch)(url, {
+      method,
+      headers,
+      body: request.body,
+      redirect: "manual",
+      signal: AbortSignal.timeout(request.timeoutMs ?? 30_000),
+    });
+    const result: CallResult = {
+      status: response.status,
+      ok: response.ok,
+      contentType: response.headers.get("content-type") ?? undefined,
+      body: await response.text(),
+      url,
+    };
+    const location = response.headers.get("location");
+    if (location) result.location = location;
+    return result;
   };
+
+  const first = await send(request.session);
+  if (!request.refresh || !looksUnauthenticated(first.status, first.location)) return first;
+
+  const fresh = await request.refresh();
+  return { ...(await send(fresh)), refreshedSession: fresh };
 }
 
 function checkParams(operationId: string, declared: OpenApiParameter[], given: Record<string, string>): void {

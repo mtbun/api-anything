@@ -9,6 +9,7 @@ export { toOpenApi, operationIdFor, type OpenApiDocument, type OpenApiOptions } 
 export { validateAgainst, type SchemaIssue } from "./schema/validate.ts";
 export { verifyCalls, explainStatus, type Verdict, type VerificationResult, type VerifyOptions } from "./verify/replay.ts";
 export { extractSession, saveSession, loadSession, sessionHeaders, DEFAULT_SESSION_PATH, type Session } from "./session/session.ts";
+export { refreshSession, looksUnauthenticated, SessionExpiredError, type RefreshOptions } from "./session/refresh.ts";
 export { loadOpenApi, listOperations, findOperation, buildUrl, callOperation, type OperationSummary, type CallRequest, type CallResult } from "./call/call.ts";
 export { parseCallArgs, type CallArgs } from "./call/args.ts";
 export { recordSession, sameSiteFilter, loadRecordScript, type RecordOptions, type RecordResult, type RecordScript } from "./record/record.ts";
