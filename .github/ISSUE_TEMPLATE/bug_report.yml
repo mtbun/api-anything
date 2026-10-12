@@ -1,0 +1,41 @@
+name: Bug report
+description: Something api-anything did wrong or did not do
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. **Never paste a HAR file, session.json, state.json or any cookie or token here**: they give access to your account. Describe the problem in words, or reproduce it with the demo app (`examples/demo-app`) or a synthetic capture.
+  - type: input
+    id: command
+    attributes:
+      label: Command
+      description: The command you ran, with credentials and private URLs removed.
+      placeholder: api-anything openapi capture.har --out openapi.json
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: The output or error message, with private values removed.
+    validations:
+      required: true
+  - type: textarea
+    id: app
+    attributes:
+      label: What kind of web app
+      description: For example "single-page app with a JSON API", "server-rendered", "uses GraphQL", "SignalR". No names or URLs needed.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `api-anything --version` and `node --version`.
+    validations:
+      required: true
