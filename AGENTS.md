@@ -14,6 +14,7 @@ npm test             # node:test via tsx, must pass before every commit
 npx playwright install chromium   # once, for the recording test
 npm run typecheck    # tsc --noEmit, must be clean
 npm run cli -- record <url> [--out capture.har] [--all-origins] [--channel chrome]
+               [--script steps.ts] [--headless|--headed] [--state file] [--save-state file]
 npm run cli -- analyze test/fixtures/erp-session.har [--json]
 npm run cli -- openapi test/fixtures/erp-session.har [--out file] [--title t]
 npm run cli -- verify <capture.har> [--base-url url] [--allow-writes] [--delay ms] [--json]
@@ -42,6 +43,7 @@ test/             tests; test/fixtures/ holds synthetic captures only
 
 - **The core is deterministic.** Parsing, grouping and schema inference make no network or model calls. Keep it that way; model-based features go in their own module and must be opt-in.
 - **Nothing writes by default.** `verify` replays only GET/HEAD/OPTIONS and `call` refuses POST/PUT/PATCH/DELETE unless `allowWrites` is set. Keep that default; tests run against a local server, never a real system.
+- **Agents record with scripts, people log in.** `record --script` runs a file that default-exports `async (page, { url }) => {}`. Never type a user's password in a script; start from a state file saved by the user with `--save-state`.
 - **Credentials never enter the OpenAPI document.** Session headers live only in `.api-anything/session.json` (mode 600, gitignored).
 - **Never commit real captures.** HAR files contain session cookies and business data. Fixtures must be synthetic and use the `example.test` domain.
 - **Every behaviour change gets a test.** Add or update a case in `test/` and keep the fixture minimal.
