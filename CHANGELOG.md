@@ -15,6 +15,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - `deps <capture.har>`: traces credentials and IDs from the response that issues them to the requests that use them; exported as OpenAPI links and `x-api-anything.providesAuth`. (#7)
 - Session refresh: `call --refresh-state` and `refresh <url> --state` renew an expired session from a saved browser login and retry once, without storing a password. (#8)
 - `api-anything` command via `npm link`, with a Node entry point that runs the TypeScript sources through tsx. (#9)
+- `--version`, and `--help` after any command. (#13)
 - `client <openapi.json> --lang ts|py`: generates a single-file, dependency-free TypeScript (fetch) or Python (standard library, 3.9+) client with typed methods, defaults, credential query parameters and session-file loading. (#12)
 - `--keep-noise` for `analyze`, `openapi`, `deps` and `verify`. (#10)
 - Query parameters with the same value on every call become optional parameters with that default; `ops` shows them as `--name <type>=value` and `call` fills them in. (#10)
@@ -26,6 +27,9 @@ All notable changes to this project are documented here. The format follows [Kee
 - Documentation positions api-anything for any web app, led by multi-tenant SaaS, instead of internal systems only. (#9)
 
 ### Fixed
+
+- A missing or non-JSON capture, an empty capture passed to `openapi`, an invalid JSON `--body` and an unreachable host now give one readable `error:` line with what to do next instead of a raw library message; `openapi` no longer writes a document without operations. (#13)
+- Sparse HAR exports without request headers, response headers or content no longer crash the analysis; entries without a URL, method or response are skipped. (#13)
 
 Found by recording real public web apps:
 
