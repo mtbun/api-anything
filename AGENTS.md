@@ -22,7 +22,8 @@ CLI commands:
 record  <url> [--out capture.har] [--all-origins] [--channel chrome|msedge]
               [--script steps.ts] [--headless|--headed] [--state file] [--save-state file]
 analyze <capture.har> [--json] [--keep-noise]
-openapi <capture.har> [--out file] [--title t] [--version v] [--keep-noise]
+openapi <capture.har> [--out file] [--title t] [--version v] [--keep-noise] [--no-examples]
+redact  <capture.har>
 deps    <capture.har> [--json] [--keep-noise]
 session <capture.har> [--out file]
 ops     <openapi.json> [--json]
@@ -66,6 +67,7 @@ test/             tests; test/fixtures/ holds synthetic captures only
 - **Agents record with scripts, people log in.** `record --script` runs a file that default-exports `async (page, { url }) => {}`. Never type a user's password in a script; start from a state file the user saved with `--save-state`.
 - **Never replay or store a login request.** Sessions are renewed only from a browser state the user saved (`refreshSession`).
 - **Reads and writes are decided in one place.** Use `isReadOperation` from `src/endpoints/actions.ts`; do not check HTTP methods directly.
+- **Secrets never reach disk or documents.** `record` runs `redactHar` before the capture is kept; schema inference keeps no examples for `CREDENTIAL_FIELD` names or JWTs. Any new output path must respect `src/credentials.ts`.
 - **Credentials stay out of shared output.** They never enter the OpenAPI document, are masked in `deps` output, and live only in `.api-anything/` (mode 600, gitignored).
 - **Never commit real captures.** HAR files contain session cookies and account data. Fixtures must be synthetic and use the `example.test` domain. When a real recording reveals a problem, reproduce its pattern in a synthetic fixture (see `test/fixtures/search-app.har`).
 - **Every behaviour change gets a test and a docs update.** Update README.md, AGENTS.md, llms.txt and CHANGELOG.md in the same pull request.

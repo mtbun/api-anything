@@ -14,7 +14,7 @@
 
 ## Key facts
 
-- Passwords are never stored and the login request is never replayed; only cookies, tokens, API keys and browser state are kept, in files with mode 600.
+- Passwords are masked in recordings before they are written, never appear as examples in OpenAPI documents, and the login request is never replayed; only cookies, tokens, API keys and browser state are kept, in files with mode 600.
 - POST actions that only read (query, search, find, lookup, count) are treated as reads; other writes need --allow-writes.
 - Analysis is deterministic, runs locally and needs no API key or AI model.
 - Exit codes: 0 success, 1 usage error, 2 non-2xx response or failed verification. Errors are one `error:` line on stderr that says what to do next.
