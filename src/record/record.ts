@@ -1,3 +1,6 @@
+import { chmod } from "node:fs/promises";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { Browser, BrowserContext, Page } from "playwright";
 
 // Opens a browser, lets the user (or a script) work in the system, and saves
@@ -12,11 +15,19 @@ export interface RecordOptions {
   headless?: boolean;
   // "chrome" or "msedge" uses the installed browser; otherwise Playwright's Chromium.
   channel?: string;
-  // Drives the page instead of a human, then the recording ends. Used by
-  // tests and scripted captures.
-  run?: (page: Page) => Promise<void>;
+  // Drives the page instead of a human, then the recording ends. This is how
+  // an agent records: it writes a script and runs it, headless or not.
+  run?: RecordScript;
+  // Browser state (cookies, local storage) to start from, e.g. a login the
+  // user did once with saveStatePath.
+  storageStatePath?: string;
+  // Where to save the browser state when the recording ends (mode 600).
+  saveStatePath?: string;
   onReady?: () => void;
 }
+
+// The default export of a --script file.
+export type RecordScript = (page: Page, context: { url: string }) => Promise<void>;
 
 export interface RecordResult {
   outPath: string;
@@ -33,15 +44,23 @@ export async function recordSession(options: RecordOptions): Promise<RecordResul
   try {
     context = await browser.newContext({
       recordHar: { path: options.outPath, content: "embed", mode: "full", urlFilter },
+      storageState: options.storageStatePath,
     });
     const page = await context.newPage();
     await page.goto(start.href);
     options.onReady?.();
 
     if (options.run) {
-      await options.run(page);
+      await options.run(page, { url: start.href });
     } else {
+      // A person may quit the whole browser, after which the state can no
+      // longer be read; keep a fresh copy while they work.
+      const stop = options.saveStatePath ? keepStateSaved(context, options.saveStatePath) : undefined;
       await untilClosed(browser, context);
+      stop?.();
+    }
+    if (options.saveStatePath && browser.isConnected()) {
+      await saveState(context, options.saveStatePath);
     }
   } finally {
     // Closing the context is what writes the HAR file.
@@ -73,6 +92,34 @@ function untilClosed(browser: Browser, context: BrowserContext): Promise<void> {
     // Ctrl+C in the terminal ends the recording and still saves the file.
     process.once("SIGINT", done);
   });
+}
+
+async function saveState(context: BrowserContext, path: string): Promise<void> {
+  await context.storageState({ path });
+  await chmod(path, 0o600);
+}
+
+function keepStateSaved(context: BrowserContext, path: string): () => void {
+  let timer: NodeJS.Timeout | undefined;
+  const schedule = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => saveState(context, path).catch(() => {}), 1000);
+  };
+  context.on("requestfinished", schedule);
+  return () => {
+    clearTimeout(timer);
+    context.off("requestfinished", schedule);
+  };
+}
+
+// Loads a --script file. It must default-export an async function that
+// receives the Playwright page.
+export async function loadRecordScript(path: string): Promise<RecordScript> {
+  const module = (await import(pathToFileURL(resolve(path)).href)) as { default?: unknown };
+  if (typeof module.default !== "function") {
+    throw new Error(`${path} must default-export an async function (page, { url }) => { ... }`);
+  }
+  return module.default as RecordScript;
 }
 
 async function launch(chromium: typeof import("playwright").chromium, options: RecordOptions): Promise<Browser> {
