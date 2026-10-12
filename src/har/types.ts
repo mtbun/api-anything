@@ -9,7 +9,7 @@ export interface HarNameValue {
 export interface HarPostData {
   mimeType?: string;
   text?: string;
-  params?: HarNameValue[];
+  params?: { name: string; value?: string }[];
 }
 
 export interface HarRequest {

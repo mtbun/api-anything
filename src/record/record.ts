@@ -2,6 +2,7 @@ import { chmod } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Browser, BrowserContext, Page } from "playwright";
+import { redactHarFile } from "../har/redact.ts";
 
 // Opens a browser, lets the user (or a script) work in the system, and saves
 // the traffic as a HAR file when the browser is closed. Replaces exporting a
@@ -32,6 +33,8 @@ export type RecordScript = (page: Page, context: { url: string }) => Promise<voi
 export interface RecordResult {
   outPath: string;
   urlFilter: string;
+  // Secret fields (passwords, one-time codes) masked in request bodies.
+  redacted: number;
 }
 
 export async function recordSession(options: RecordOptions): Promise<RecordResult> {
@@ -67,7 +70,10 @@ export async function recordSession(options: RecordOptions): Promise<RecordResul
     if (context) await context.close().catch(() => {});
     await browser.close().catch(() => {});
   }
-  return { outPath: options.outPath, urlFilter: urlFilter.source };
+  // The capture holds session cookies; never leave it readable by others, and
+  // never keep a typed password in it.
+  const redacted = await redactHarFile(options.outPath);
+  return { outPath: options.outPath, urlFilter: urlFilter.source, redacted };
 }
 
 // Matches the start host and its sibling subdomains: starting at

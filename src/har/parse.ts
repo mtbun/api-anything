@@ -77,7 +77,17 @@ export function extractApiCalls(har: Har, options: ExtractOptions = {}): ApiCall
 }
 
 export function isNoise(url: URL): boolean {
-  return NOISE_HOSTS.some((host) => host.test(url.hostname)) || NOISE_PATHS.some((path) => path.test(url.pathname));
+  return (
+    NOISE_HOSTS.some((host) => host.test(url.hostname)) ||
+    NOISE_PATHS.some((path) => path.test(url.pathname)) ||
+    isRealtimeHandshake(url)
+  );
+}
+
+// SignalR and similar libraries open a WebSocket with a POST .../negotiate;
+// it sets up a connection rather than doing anything callable.
+function isRealtimeHandshake(url: URL): boolean {
+  return /\/negotiate$/.test(url.pathname) && url.searchParams.has("negotiateVersion");
 }
 
 export function isApiEntry(entry: HarEntry): boolean {

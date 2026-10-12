@@ -25,8 +25,17 @@ export function actionOf(method: string, pathTemplate: string): string | undefin
   return last && ACTIONS.has(last) ? last : undefined;
 }
 
+// RPC-style segments start with a verb: "get-pto-history", "delete-item",
+// "saveDraft". The verb decides, whatever the HTTP method says: some apps
+// delete with GET or read with POST.
+const RPC_READ = /^(get|list|fetch|find|search|query|check|calculate|count|preview|lookup)(?:[-_]|[A-Z]|$)/;
+const RPC_WRITE = /^(create|add|save|submit|update|set|delete|remove|cancel|approve|reject|send|upload|import|archive|restore|assign|close|reopen)(?:[-_]|[A-Z]|$)/;
+
 export function isReadOperation(method: string, pathTemplate: string): boolean {
   const upper = method.toUpperCase();
+  const last = lastLiteral(pathTemplate);
+  if (last && RPC_WRITE.test(last)) return false;
+  if (last && RPC_READ.test(last)) return true;
   if (upper === "GET" || upper === "HEAD" || upper === "OPTIONS") return true;
   const action = actionOf(upper, pathTemplate);
   return action !== undefined && READ_ACTIONS.has(action);
