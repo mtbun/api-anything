@@ -38,6 +38,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Security
 
 - Fixed the findings of the first CodeQL scan: regular expressions that could be made slow by crafted paths or values in a capture (path placeholders in client generation, the email format check) are now linear; non-standard HTTP methods in a capture are ignored so they cannot become object keys; the release-notes script validates and fully escapes the version. (#22)
+- `toOpenApi` also checks the HTTP method of endpoints passed in by library callers, so only standard methods become path item keys. (#27)
 
 ### Fixed
 

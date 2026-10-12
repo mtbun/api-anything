@@ -63,6 +63,8 @@ export interface OpenApiLink {
   description?: string;
 }
 
+const OPERATION_METHODS = ["get", "put", "post", "delete", "options", "head", "patch", "trace"] as const;
+
 export function toOpenApi(endpoints: Endpoint[], options: OpenApiOptions = {}): OpenApiDocument {
   const origins = [...new Set(endpoints.map((e) => e.origin))];
   const primary = mostCommonOrigin(endpoints) ?? origins[0];
@@ -71,12 +73,16 @@ export function toOpenApi(endpoints: Endpoint[], options: OpenApiOptions = {}): 
   const paths: OpenApiDocument["paths"] = {};
   const byEndpoint = new Map<string, OpenApiOperation>();
   endpoints.forEach((endpoint, i) => {
+    // Endpoints may come from library callers, so only real HTTP methods
+    // become keys of a path item.
+    const method = OPERATION_METHODS.find((m) => m === endpoint.method.toLowerCase());
+    if (!method) return;
     const operation = toOperation(endpoint, operationIds[i]!);
     if (endpoint.origin !== primary || endpoint.alternateOrigins) {
       operation.servers = [endpoint.origin, ...(endpoint.alternateOrigins ?? [])].map((url) => ({ url }));
     }
     const pathItem = (paths[endpoint.pathTemplate] ??= {});
-    pathItem[endpoint.method.toLowerCase()] = operation;
+    pathItem[method] = operation;
     byEndpoint.set(endpoint.id, operation);
   });
   addDependencies(byEndpoint, options.dependencies ?? []);

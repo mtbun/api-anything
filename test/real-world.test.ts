@@ -194,4 +194,9 @@ test("hostile values in a capture stay fast and harmless", async () => {
 
   const har = { log: { entries: [{ request: { method: "__proto__", url: "https://a.example.test/api/x", headers: [] }, response: { status: 200, headers: [], content: { mimeType: "application/json", text: "{}" } } }] } };
   assert.deepEqual(extractApiCalls(har), [], "non-standard methods are not API calls");
+
+  const [endpoint] = groupEndpoints(extractApiCalls(await loadHar(FIXTURE)));
+  const doc = toOpenApi([{ ...endpoint!, method: "__proto__" }]);
+  assert.deepEqual(doc.paths, {}, "endpoints passed in by library callers are checked too");
+  assert.equal(({} as Record<string, unknown>).get, undefined);
 });

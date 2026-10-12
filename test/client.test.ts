@@ -64,7 +64,7 @@ test("the TypeScript client type-checks in strict mode", async () => {
   await run(join(ROOT, "node_modules/.bin/tsc"), [
     "--noEmit", "--strict", "--skipLibCheck", "--target", "es2022", "--module", "nodenext",
     "--moduleResolution", "nodenext", "--types", "node", "--typeRoots", join(ROOT, "node_modules/@types"), file,
-  ]);
+  ], { cwd: dir });
 });
 
 test("the TypeScript client calls operations with session, defaults and credentials", async () => {
