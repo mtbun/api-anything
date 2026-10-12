@@ -249,13 +249,18 @@ order = api.get_order(orders["items"][0]["id"])
 
 ## What happens when the session expires?
 
+`call` renews it and retries once, in two steps:
+
+1. **Headless, from the saved browser login.** A `401`, `403` or a redirect to a login page is treated as an expired session. api-anything opens the app headless from the browser state saved with `record --save-state` (`.api-anything/state.json`, or `--refresh-state <file>`), lets the web app load, collects the fresh cookies and credential headers it uses, and saves them to the session file.
+2. **A quick login, when that has ended too.** If a person is at the terminal, a browser window opens at the app's login page. Log in; the window closes by itself as soon as the app is reached, and the call continues. Nothing has to be recorded again.
+
 ```bash
-api-anything call openapi.json listOrders --status open --refresh-state .api-anything/state.json
+api-anything refresh https://app.example.com --interactive   # the same on demand
 ```
 
-With `--refresh-state`, a `401`, `403` or a redirect to a login page is treated as an expired session: api-anything opens the app headless from the browser state saved with `record --save-state`, lets the web app load, collects the fresh cookies and credential headers it uses, saves them to the session file and retries the call once. `api-anything refresh <url> --state <file>` does the same on demand.
+Scripts and agents that run without a terminal never get a window: they get `error: the saved login has ended and a person needs to log in. Run: api-anything refresh <url> --interactive`, which an agent can pass on to you. `--no-interactive` turns the window off in a terminal too.
 
-No password is stored and the login request is never replayed. If the saved browser state itself has expired, api-anything says so and a person logs in again with `record --save-state`.
+No password is stored and the login request is never replayed.
 
 ## How do I know the operations still work?
 
@@ -321,6 +326,8 @@ api-anything is early. What exists today:
 - [x] **Replay verification**: verified, drifted, failed or skipped per operation, with reasons and schema differences
 
 - [x] **Client generation**: single-file, dependency-free TypeScript and Python clients with typed methods
+
+- [x] **Session renewal**: headless from the saved browser login, or a one-step login window when that has ended
 
 Planned:
 
