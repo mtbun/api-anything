@@ -1,6 +1,7 @@
 import { STATUS_CODES } from "node:http";
 import type { Endpoint } from "../endpoints/group.ts";
 import { isIdentifierSegment, singular } from "../endpoints/normalize.ts";
+import { actionOf } from "../endpoints/actions.ts";
 import type { JsonSchema } from "../schema/infer.ts";
 import type { Dependency } from "../deps/deps.ts";
 
@@ -31,7 +32,13 @@ export interface OpenApiOperation {
   parameters?: OpenApiParameter[];
   requestBody?: { required: boolean; content: Record<string, { schema: JsonSchema }> };
   responses: Record<string, OpenApiResponse>;
-  "x-api-anything": { observedCalls: number; examplePaths: string[]; providesAuth?: string[] };
+  "x-api-anything": {
+    observedCalls: number;
+    examplePaths: string[];
+    providesAuth?: string[];
+    // Query parameters that carry credentials; `call` adds them from the session file.
+    credentialQuery?: string[];
+  };
 }
 
 export interface OpenApiParameter {
@@ -131,6 +138,8 @@ function toOperation(endpoint: Endpoint, operationId: string): OpenApiOperation 
     "x-api-anything": { observedCalls: endpoint.callCount, examplePaths: endpoint.examplePaths },
   };
   if (parameters.length > 0) operation.parameters = parameters;
+  const credentialQuery = endpoint.queryParameters.filter((p) => p.credential).map((p) => p.name);
+  if (credentialQuery.length > 0) operation["x-api-anything"].credentialQuery = credentialQuery;
 
   if (endpoint.requestBody) {
     operation.requestBody = {
@@ -173,14 +182,15 @@ function pathValueSchema(values: string[]): JsonSchema {
 }
 
 function queryParameters(endpoint: Endpoint): OpenApiParameter[] {
-  return endpoint.queryParameters.map((p) => ({
-    name: p.name,
-    in: "query" as const,
-    required: p.required,
-    schema: p.examples.length > 0 && p.examples.every((v) => /^\d+$/.test(v))
-      ? { type: "integer", examples: p.examples.map(Number) }
-      : { type: "string", examples: p.examples },
-  }));
+  return endpoint.queryParameters
+    .filter((p) => !p.credential)
+    .map((p) => {
+      const numeric = p.examples.length > 0 && p.examples.every((v) => /^\d+$/.test(v));
+      const schema: JsonSchema = numeric ? { type: "integer", examples: p.examples.map(Number) } : { type: "string", examples: p.examples };
+      // A value the web app always sends becomes a default, so callers need not repeat it.
+      if (p.constant !== undefined) schema.default = numeric ? Number(p.constant) : p.constant;
+      return { name: p.name, in: "query" as const, required: p.required && p.constant === undefined, schema };
+    });
 }
 
 function mediaType(mime: string | undefined): string {
@@ -206,6 +216,12 @@ export function operationIdFor(method: string, pathTemplate: string): string {
     (s) => !s.startsWith("{") && !/^api$/i.test(s) && !/^v\d+(\.\d+)?$/i.test(s) && !isIdentifierSegment(s),
   );
 
+  const action = actionOf(method, pathTemplate);
+  if (action) {
+    // POST /indexes/{id}/query -> queryIndex; POST /api/login -> login
+    const subject = literals.slice(0, -1).map((word) => pascal(singular(word))).join("");
+    return action + subject;
+  }
   const verb = verbFor(method.toUpperCase(), endsWithParam);
   const words = literals.map((word, i) => {
     const isLast = i === literals.length - 1;

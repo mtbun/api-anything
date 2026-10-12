@@ -47,8 +47,8 @@ test("query parameters, request bodies and responses are carried over", async ()
   const doc = toOpenApi(await analyzeHar(FIXTURE));
   const list = doc.paths["/api/v1/orders"]!.get!;
   assert.deepEqual(
-    list.parameters!.map((p) => [p.name, p.in, p.required, p.schema.type]),
-    [["page", "query", true, "integer"], ["sort", "query", false, "string"], ["status", "query", true, "string"]],
+    list.parameters!.map((p) => [p.name, p.in, p.required, p.schema.type, p.schema.default]),
+    [["page", "query", true, "integer", undefined], ["sort", "query", false, "string", undefined], ["status", "query", false, "string", "open"]],
   );
   assert.equal(list["x-api-anything"].observedCalls, 2);
 

@@ -1,6 +1,7 @@
 import type { ApiCall } from "../har/parse.ts";
 import { inferSchema, mergeSchemas, type JsonSchema } from "../schema/infer.ts";
 import { templatePath } from "./normalize.ts";
+import { CREDENTIAL_PARAM } from "../credentials.ts";
 
 // One API operation observed in the capture: a method on a templated path of
 // one origin, with everything learned from every call that matched it.
@@ -22,6 +23,11 @@ export interface QueryParameter {
   // Seen on every call to this endpoint.
   required: boolean;
   examples: string[];
+  // The same value on every one of two or more calls: a fixed setting of the
+  // web app (client version, app ID) rather than an input.
+  constant?: string;
+  // Carries a credential (API key, token); belongs to the session.
+  credential?: boolean;
 }
 
 export interface EndpointResponse {
@@ -61,7 +67,7 @@ function buildEndpoint(key: string, calls: ApiCall[]): Endpoint {
     callCount: calls.length,
     queryParameters: queryParameters(calls),
     responses: responses(calls),
-    examplePaths: [...new Set(calls.map((c) => c.url.pathname + c.url.search))].slice(0, MAX_EXAMPLE_PATHS),
+    examplePaths: [...new Set(calls.map((c) => examplePath(c.url)))].slice(0, MAX_EXAMPLE_PATHS),
   };
 
   const bodies = calls.map((c) => c.requestBody).filter((b) => b !== undefined);
@@ -72,24 +78,39 @@ function buildEndpoint(key: string, calls: ApiCall[]): Endpoint {
   return endpoint;
 }
 
+// The path and query of a call with credential parameters removed, so that
+// examples can be shared.
+function examplePath(url: URL): string {
+  const query = new URLSearchParams();
+  for (const [name, value] of url.searchParams) if (!CREDENTIAL_PARAM.test(name)) query.append(name, value);
+  const search = query.toString();
+  return url.pathname + (search ? `?${search}` : "");
+}
+
 function queryParameters(calls: ApiCall[]): QueryParameter[] {
-  const seen = new Map<string, { calls: number; examples: Set<string> }>();
+  const seen = new Map<string, { calls: number; examples: Set<string>; values: Set<string> }>();
   for (const call of calls) {
     const names = new Set<string>();
     for (const [name, value] of call.url.searchParams) {
-      const entry = seen.get(name) ?? { calls: 0, examples: new Set<string>() };
+      const entry = seen.get(name) ?? { calls: 0, examples: new Set<string>(), values: new Set<string>() };
       if (!names.has(name)) entry.calls += 1;
       names.add(name);
+      entry.values.add(value);
       if (entry.examples.size < MAX_QUERY_EXAMPLES) entry.examples.add(value);
       seen.set(name, entry);
     }
   }
   return [...seen.entries()]
-    .map(([name, { calls: count, examples }]) => ({
-      name,
-      required: count === calls.length,
-      examples: [...examples],
-    }))
+    .map(([name, { calls: count, examples, values }]) => {
+      const param: QueryParameter = { name, required: count === calls.length, examples: [...examples] };
+      if (CREDENTIAL_PARAM.test(name)) {
+        param.credential = true;
+        param.examples = [];
+      } else if (count === calls.length && calls.length >= 2 && values.size === 1) {
+        param.constant = [...values][0]!;
+      }
+      return param;
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 

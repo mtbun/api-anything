@@ -25,6 +25,23 @@ const STATIC_EXTENSIONS = new Set([
 
 const API_RESOURCE_TYPES = new Set(["xhr", "fetch"]);
 
+// Traffic that every site sends but that is never the app's own API:
+// analytics, tag managers, error and session reporting, bot challenges.
+const NOISE_HOSTS = [
+  /(^|\.)google-analytics\.com$/, /(^|\.)analytics\.google\.com$/, /(^|\.)googletagmanager\.com$/,
+  /(^|\.)doubleclick\.net$/, /(^|\.)facebook\.(com|net)$/, /(^|\.)hotjar\.(com|io)$/,
+  /(^|\.)segment\.(io|com)$/, /(^|\.)mixpanel\.com$/, /(^|\.)amplitude\.com$/,
+  /(^|\.)sentry\.io$/, /(^|\.)ingest\.sentry\.io$/, /(^|\.)browser-intake-[a-z0-9-]+\.datadoghq\.(com|eu)$/,
+  /(^|\.)nr-data\.net$/, /(^|\.)clarity\.ms$/, /(^|\.)plausible\.io$/, /(^|\.)posthog\.com$/,
+  /^(telemetry|analytics|stats|metrics|tracking|beacon|rum)\./,
+];
+const NOISE_PATHS = [/^\/cdn-cgi\//, /^\/_vercel\/insights\//, /^\/\.well-known\//];
+
+export interface ExtractOptions {
+  // Keep analytics, telemetry and bot-challenge traffic.
+  keepNoise?: boolean;
+}
+
 export async function loadHar(path: string): Promise<Har> {
   const har = JSON.parse(await readFile(path, "utf8")) as Har;
   if (!har?.log || !Array.isArray(har.log.entries)) {
@@ -33,8 +50,15 @@ export async function loadHar(path: string): Promise<Har> {
   return har;
 }
 
-export function extractApiCalls(har: Har): ApiCall[] {
-  return har.log.entries.filter(isApiEntry).map(toApiCall);
+export function extractApiCalls(har: Har, options: ExtractOptions = {}): ApiCall[] {
+  return har.log.entries
+    .filter(isApiEntry)
+    .filter((entry) => options.keepNoise || !isNoise(new URL(entry.request.url)))
+    .map(toApiCall);
+}
+
+export function isNoise(url: URL): boolean {
+  return NOISE_HOSTS.some((host) => host.test(url.hostname)) || NOISE_PATHS.some((path) => path.test(url.pathname));
 }
 
 export function isApiEntry(entry: HarEntry): boolean {
@@ -45,6 +69,9 @@ export function isApiEntry(entry: HarEntry): boolean {
     return false;
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  // Status 0 or below means the request never got an answer (aborted,
+  // blocked, offline); there is nothing to learn from it.
+  if (entry.response.status <= 0) return false;
 
   // Browsers record the resource type; when present it is the best signal.
   const type = entry._resourceType?.toLowerCase();

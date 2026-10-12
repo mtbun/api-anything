@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import type { OpenApiDocument, OpenApiOperation, OpenApiParameter } from "../openapi/export.ts";
-import { sessionHeaders, type Session } from "../session/session.ts";
+import { sessionHeaders, sessionQuery, type Session } from "../session/session.ts";
+import { isReadOperation } from "../endpoints/actions.ts";
 import { looksUnauthenticated } from "../session/refresh.ts";
 
 // Calls one operation of an OpenAPI document by its operationId, so that a
@@ -11,7 +12,7 @@ export interface OperationSummary {
   method: string;
   path: string;
   server: string;
-  parameters: { name: string; in: "path" | "query"; required: boolean; type?: string }[];
+  parameters: { name: string; in: "path" | "query"; required: boolean; type?: string; default?: string }[];
   hasBody: boolean;
   writes: boolean;
 }
@@ -41,7 +42,6 @@ export interface CallResult {
   refreshedSession?: Session;
 }
 
-const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 export async function loadOpenApi(path: string): Promise<OpenApiDocument> {
   const doc = JSON.parse(await readFile(path, "utf8")) as OpenApiDocument;
@@ -63,9 +63,10 @@ export function listOperations(doc: OpenApiDocument): OperationSummary[] {
           in: p.in,
           required: p.required,
           type: typeof p.schema.type === "string" ? p.schema.type : undefined,
+          default: p.schema.default === undefined ? undefined : String(p.schema.default),
         })),
         hasBody: op.requestBody !== undefined,
-        writes: WRITE_METHODS.has(method.toUpperCase()),
+        writes: !isReadOperation(method, path),
       });
     }
   }
@@ -90,7 +91,7 @@ export function buildUrl(doc: OpenApiDocument, operationId: string, params: Reco
   let resolved = path;
   const query = new URLSearchParams();
   for (const p of declared) {
-    const value = params[p.name];
+    const value = params[p.name] ?? (p.schema.default === undefined ? undefined : String(p.schema.default));
     if (value === undefined) continue;
     if (p.in === "path") resolved = resolved.replace(`{${p.name}}`, encodeURIComponent(value));
     else query.append(p.name, value);
@@ -102,16 +103,21 @@ export function buildUrl(doc: OpenApiDocument, operationId: string, params: Reco
 }
 
 export async function callOperation(doc: OpenApiDocument, request: CallRequest): Promise<CallResult> {
-  const { method, op } = findOperation(doc, request.operationId);
-  if (WRITE_METHODS.has(method) && !request.allowWrites) {
+  const { method, path, op } = findOperation(doc, request.operationId);
+  if (!isReadOperation(method, path) && !request.allowWrites) {
     throw new Error(`${request.operationId} is a ${method} and changes data; pass --allow-writes to call it`);
   }
   if (op.requestBody?.required && request.body === undefined) {
     throw new Error(`${request.operationId} needs a request body; pass --body '<json>' or --body @file.json`);
   }
 
-  const url = buildUrl(doc, request.operationId, request.params, request.baseUrl);
   const origin = serverFor(doc, op);
+  const built = new URL(buildUrl(doc, request.operationId, request.params, request.baseUrl));
+  // Credentials the web app sends in the URL come from the session file.
+  for (const [name, value] of Object.entries(sessionQuery(request.session, origin))) {
+    if ((op["x-api-anything"].credentialQuery ?? []).includes(name) && !built.searchParams.has(name)) built.searchParams.set(name, value);
+  }
+  const url = built.href;
   const mediaType = Object.keys(op.requestBody?.content ?? {})[0] ?? "application/json";
 
   const send = async (session: Session | undefined): Promise<CallResult> => {

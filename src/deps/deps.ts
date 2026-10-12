@@ -1,6 +1,7 @@
 import type { ApiCall } from "../har/parse.ts";
 import { endpointKey } from "../endpoints/group.ts";
 import { templatePath } from "../endpoints/normalize.ts";
+import { CREDENTIAL_PARAM, SESSION_HEADER } from "../credentials.ts";
 
 // Finds values that one call receives and a later call sends back: a token
 // from a login response that becomes the Authorization header, an order ID
@@ -32,7 +33,7 @@ export interface Dependency {
 const MIN_STRING_LENGTH = 4;
 const MIN_NUMBER = 100;
 
-const AUTH_HEADER = /^(authorization|cookie)$|csrf|xsrf|token|api[-_]?key|session|auth/i;
+const AUTH_HEADER = SESSION_HEADER;
 
 interface Produced {
   value: string;
@@ -53,7 +54,10 @@ export function findDependencies(calls: ApiCall[]): Dependency[] {
     for (const used of consumedValues(call)) {
       const source = firstProducer.get(used.value);
       if (!source || source.endpoint === endpoint) continue;
-      const kind: DependencyKind = used.location.startsWith("request.header") || used.location.startsWith("request.cookie") ? "auth" : "data";
+      const kind: DependencyKind =
+        used.location.startsWith("request.header") || used.location.startsWith("request.cookie") || isCredentialQuery(used.location)
+          ? "auth"
+          : "data";
       const key = `${source.endpoint}|${source.location}|${endpoint}|${used.location}`;
       const existing = links.get(key);
       if (existing) {
@@ -158,6 +162,10 @@ function* flatten(value: unknown, path: string): Generator<[string, string]> {
 function addString(out: Located[], value: string, location: string): void {
   const isNumber = /^-?\d+(\.\d+)?$/.test(value);
   if (isNumber ? Math.abs(Number(value)) >= MIN_NUMBER : value.length >= MIN_STRING_LENGTH) out.push({ value, location });
+}
+
+function isCredentialQuery(location: string): boolean {
+  return location.startsWith("request.query:") && CREDENTIAL_PARAM.test(location.slice("request.query:".length));
 }
 
 function byTime(a: ApiCall, b: ApiCall): number {

@@ -7,6 +7,7 @@ export type JsonSchema = {
   required?: string[];
   items?: JsonSchema;
   format?: string;
+  default?: unknown;
   examples?: unknown[];
 };
 

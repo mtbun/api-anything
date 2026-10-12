@@ -1,5 +1,6 @@
 import { chmod } from "node:fs/promises";
-import { SESSION_HEADER, type Session } from "./session.ts";
+import { SESSION_HEADER } from "../credentials.ts";
+import type { Session } from "./session.ts";
 
 // Gets a fresh session without storing a password: opens the system headless
 // from a browser state the user saved after logging in once (record

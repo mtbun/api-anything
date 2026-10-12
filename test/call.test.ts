@@ -73,21 +73,23 @@ test("listOperations describes every operation with its parameters", () => {
   const ops = listOperations(doc);
   assert.deepEqual(ops.map((o) => o.operationId), ["createOrder", "getOrder", "listCustomerInvoices", "listOrders"]);
   const list = ops.find((o) => o.operationId === "listOrders")!;
-  assert.deepEqual(list.parameters.map((p) => `${p.name}:${p.required}`), ["page:true", "sort:false", "status:true"]);
+  // status was "open" on every observed call, so it becomes an optional parameter with that default.
+  assert.deepEqual(list.parameters.map((p) => `${p.name}:${p.required}:${p.default ?? ""}`), ["page:true:", "sort:false:", "status:false:open"]);
   assert.equal(ops.find((o) => o.operationId === "createOrder")!.writes, true);
 });
 
 test("buildUrl fills path and query parameters", () => {
   assert.equal(buildUrl(doc, "getOrder", { orderId: "1042" }), "https://erp.example.test/api/v1/orders/1042");
   assert.equal(
-    buildUrl(doc, "listOrders", { status: "open", page: "2" }, "https://staging.example.test/"),
-    "https://staging.example.test/api/v1/orders?page=2&status=open",
+    buildUrl(doc, "listOrders", { status: "closed", page: "2" }, "https://staging.example.test/"),
+    "https://staging.example.test/api/v1/orders?page=2&status=closed",
   );
+  assert.equal(buildUrl(doc, "listOrders", { page: "2" }), "https://erp.example.test/api/v1/orders?page=2&status=open", "defaults fill in");
   assert.equal(buildUrl(doc, "getOrder", { orderId: "a/b" }), "https://erp.example.test/api/v1/orders/a%2Fb");
 });
 
 test("buildUrl rejects missing, unknown and misspelled parameters with guidance", () => {
-  assert.throws(() => buildUrl(doc, "listOrders", { page: "1" }), /listOrders needs --status/);
+  assert.throws(() => buildUrl(doc, "listOrders", { status: "open" }), /listOrders needs --page/);
   assert.throws(() => buildUrl(doc, "listOrders", { status: "open", page: "1", stauts: "x" }), /no parameter --stauts\. Valid: page, sort, status/);
   assert.throws(() => buildUrl(doc, "listOrdrs", {}), /unknown operation "listOrdrs"\. Available: createOrder/);
 });

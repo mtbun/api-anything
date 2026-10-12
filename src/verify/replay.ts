@@ -2,6 +2,7 @@ import type { ApiCall } from "../har/parse.ts";
 import { parseBody } from "../har/parse.ts";
 import { endpointKey, groupEndpoints, type Endpoint } from "../endpoints/group.ts";
 import { validateAgainst, type SchemaIssue } from "../schema/validate.ts";
+import { isReadOperation } from "../endpoints/actions.ts";
 
 // Replays one recorded call per operation against the live system and reports
 // whether the operation still behaves as described.
@@ -22,7 +23,8 @@ export interface VerificationResult {
 export interface VerifyOptions {
   // Replace the recorded origin, e.g. to verify against a staging copy.
   baseUrl?: string;
-  // POST, PUT, PATCH and DELETE change data; they are replayed only when set.
+  // Writes (POST, PUT, PATCH, DELETE, except POST actions that only read such
+  // as /query or /search) are replayed only when set.
   allowWrites?: boolean;
   // Pause between requests so the system is not hit in a burst.
   delayMs?: number;
@@ -30,7 +32,6 @@ export interface VerifyOptions {
   fetch?: typeof fetch;
 }
 
-const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const MAX_ISSUES = 10;
 
 // Headers the HTTP client sets itself, or that would make the replay differ
@@ -59,7 +60,7 @@ export async function verifyCalls(calls: ApiCall[], options: VerifyOptions = {})
       results.push({ endpoint: endpoint.id, operation, verdict: "skipped", reason: "no recorded call to replay" });
       continue;
     }
-    if (!SAFE_METHODS.has(sample.method) && !options.allowWrites) {
+    if (!isReadOperation(sample.method, endpoint.pathTemplate) && !options.allowWrites) {
       results.push({
         endpoint: endpoint.id,
         operation,
