@@ -150,6 +150,7 @@ The result is an OpenAPI 3.1 document: one server for the app's main origin, a R
 Recordings of real apps carry details the document handles for you:
 
 - **API versions stay literal.** `/1/indexes` or `/api/2/orders` keep their version; record IDs, UUIDs, dates and long signed tokens become named parameters.
+- **Parameters are typed from their values.** A parameter seen as `42` is an integer, `2026-10-12` a date, `true` a boolean, a UUID a `uuid`; mixed values stay strings.
 - **Fixed values become defaults.** A query parameter the app sends with the same value on every call (a client version, an app ID) gets that value as its default, so callers pass only real inputs.
 - **Credentials in the URL stay out.** An API key or token sent as a query parameter is not a parameter and never appears in the document; it is listed under `x-api-anything.credentialQuery` and `call` adds it from the session file.
 - **Numbered hosts of one service are one operation.** When `t5-in-1.search.example.com` and `t32-usw-1.search.example.com` serve the same call, it is one operation whose OpenAPI `servers` list every host, most-used first.
@@ -209,7 +210,7 @@ listOrders               GET    /api/v1/orders
                          --page <integer> [--sort <string>] --status <string>
 ```
 
-- **Parameters are flags named after the operation's parameters.** Missing or misspelled ones are rejected with the list of valid names, so an agent can correct itself.
+- **Parameters are flags named after the operation's parameters.** Missing or misspelled ones are rejected with the list of valid names, and a value of the wrong type is rejected with an example of the right one (`--date must be a date like 2026-10-12`), so an agent can correct itself. Nothing is sent until the parameters fit.
 - **The session is kept apart from the API description.** `session` writes the cookie, authorization and CSRF headers, and API keys sent in the URL, from the capture to `.api-anything/session.json` with file mode 600; `call` reads it from there (or from `--session <file>`). The OpenAPI document never contains credentials and can be shared.
 - **Writes need `--allow-writes`.** POST, PUT, PATCH and DELETE operations are refused without it, and nothing is sent. POST actions that only read, such as searches, are not writes.
 - **Defaults fill themselves in.** Parameters with a default (shown as `--name <type>=value` in `ops`) can be left out.
