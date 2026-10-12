@@ -149,6 +149,7 @@ Recordings of real apps carry details the document handles for you:
 - **API versions stay literal.** `/1/indexes` or `/api/2/orders` keep their version; record IDs, UUIDs, dates and long signed tokens become named parameters.
 - **Fixed values become defaults.** A query parameter the app sends with the same value on every call (a client version, an app ID) gets that value as its default, so callers pass only real inputs.
 - **Credentials in the URL stay out.** An API key or token sent as a query parameter is not a parameter and never appears in the document; it is listed under `x-api-anything.credentialQuery` and `call` adds it from the session file.
+- **Numbered hosts of one service are one operation.** When `t5-in-1.search.example.com` and `t32-usw-1.search.example.com` serve the same call, it is one operation whose OpenAPI `servers` list every host, most-used first.
 - **Actions are named for what they do.** `POST /1/indexes/products/query` becomes `queryIndexProduct`, `POST /api/login` becomes `login`, and POSTs that only read (`query`, `search`, `find`, `lookup`, `count`, ...) are treated as reads, so they run without `--allow-writes`.
 
 `analyze --json` prints the same information without the OpenAPI wrapping.
